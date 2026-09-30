@@ -9,3 +9,5 @@ public enum AccessType { Free, Paid, Mixed }
 public enum PackageScope { All, Selected }
 public enum TransactionType { Package, Story }
 public enum TransactionStatus { Pending, Success, Failed }
+
+public enum ReportStatus { Pending, Resolved, Rejected }
