@@ -480,3 +480,7 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Ảnh bìa upload khi chạy thử (không đưa lên GitHub)
+backend/QuanLyDocTruyen.API/wwwroot/uploads/covers/*
+!backend/QuanLyDocTruyen.API/wwwroot/uploads/covers/.gitkeep
