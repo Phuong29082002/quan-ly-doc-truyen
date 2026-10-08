@@ -83,6 +83,15 @@ public class StoryRequest
 
     public StoryStatus Status { get; set; } = StoryStatus.Ongoing;
 
+    // PB16, PB17: chính sách truy cập và giá mua truyện
+    public AccessType AccessType { get; set; } = AccessType.Free;
+
+    [Range(0, 100000000, ErrorMessage = "Giá truyện không hợp lệ")]
+    public decimal Price { get; set; }
+
+    [Range(0, 100000, ErrorMessage = "Số chương miễn phí không hợp lệ")]
+    public int FreeChapterCount { get; set; }
+
     [MinLength(1, ErrorMessage = "Chọn ít nhất một thể loại")]
     public List<int> GenreIds { get; set; } = new();
 }

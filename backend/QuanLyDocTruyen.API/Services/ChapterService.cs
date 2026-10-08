@@ -8,7 +8,7 @@ namespace QuanLyDocTruyen.API.Services;
 
 public interface IChapterService
 {
-    Task<ChapterContentDto> ReadAsync(int storyId, int number, int? userId);
+    Task<ChapterContentDto> ReadAsync(int storyId, int number, int? userId, bool isAdmin);
     Task<ChapterAdminDto> GetForEditAsync(int id);
     Task<ChapterAdminDto> CreateAsync(int storyId, ChapterRequest req);
     Task<ChapterAdminDto> UpdateAsync(int id, ChapterRequest req);
@@ -16,8 +16,8 @@ public interface IChapterService
 
 public class ChapterService(AppDbContext db) : IChapterService
 {
-    // PB14: đọc chương (chương miễn phí, không cần đăng nhập)
-    public async Task<ChapterContentDto> ReadAsync(int storyId, int number, int? userId)
+    // PB14, PB22: đọc chương. Chương miễn phí ai cũng đọc được; chương trả phí cần gói còn hạn hoặc đã mua truyện
+    public async Task<ChapterContentDto> ReadAsync(int storyId, int number, int? userId, bool isAdmin)
     {
         var now = DateTime.UtcNow;
 
@@ -27,8 +27,15 @@ public class ChapterService(AppDbContext db) : IChapterService
             ?? throw new NotFoundException("Không tìm thấy chương");
 
         var story = chapter.Story;
-        if (!AccessRules.IsFreeChapter(story.AccessType, story.FreeChapterCount, chapter.Number, chapter.IsFree))
-            throw new ForbiddenException("Chương này yêu cầu quyền đọc trả phí");
+        var isFree = AccessRules.IsFreeChapter(story.AccessType, story.FreeChapterCount, chapter.Number, chapter.IsFree);
+        if (!isFree && !isAdmin)
+        {
+            if (userId is null)
+                throw PaidChapterDenied("LoginRequired", "Vui lòng đăng nhập để đọc chương trả phí", story, chapter.Number);
+
+            if (await AccessRules.GetUserAccessAsync(db, userId.Value, storyId, now) == ReadAccess.None)
+                throw PaidChapterDenied("PurchaseRequired", "Bạn cần đăng ký gói đọc hoặc mua truyện để đọc chương này", story, chapter.Number);
+        }
 
         var prev = await db.Chapters
             .Where(c => c.StoryId == storyId && c.Number < number && c.PublishAt <= now)
@@ -104,6 +111,20 @@ public class ChapterService(AppDbContext db) : IChapterService
 
         return ToAdminDto(chapter);
     }
+
+    // 403 kèm code/price để Web biết hiển thị yêu cầu đăng nhập hay mua gói/mua truyện
+    private static ForbiddenException PaidChapterDenied(string code, string message, Story story, int chapterNumber) =>
+        new(message)
+        {
+            Extensions =
+            {
+                ["code"] = code,
+                ["storyId"] = story.Id,
+                ["storyTitle"] = story.Title,
+                ["chapterNumber"] = chapterNumber,
+                ["price"] = story.Price
+            }
+        };
 
     private static ChapterAdminDto ToAdminDto(Chapter c) =>
         new(c.Id, c.StoryId, c.Number, c.Title, c.Content, c.IsFree, c.PublishAt);

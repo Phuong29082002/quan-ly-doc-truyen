@@ -90,6 +90,9 @@ export interface StoryRequest {
   author: string;
   description?: string;
   status: StoryStatus;
+  accessType: AccessType;
+  price: number;
+  freeChapterCount: number;
   genreIds: number[];
 }
 

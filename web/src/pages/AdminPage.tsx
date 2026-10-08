@@ -12,6 +12,7 @@ export default function AdminPage() {
         <nav className="flex gap-1 md:flex-col">
           <NavLink to="/admin/truyen" className={linkClass}>Truyện & chương</NavLink>
           <NavLink to="/admin/the-loai" className={linkClass}>Thể loại</NavLink>
+          <NavLink to="/admin/goi-doc" className={linkClass}>Gói đọc</NavLink>
         </nav>
       </aside>
       <section className="min-w-0 flex-1">

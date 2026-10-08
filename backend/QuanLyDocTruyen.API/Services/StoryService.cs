@@ -108,6 +108,7 @@ public class StoryService(AppDbContext db, IWebHostEnvironment env) : IStoryServ
     public async Task<StoryDetailDto> CreateAsync(StoryRequest req)
     {
         var genreIds = await ValidateGenresAsync(req.GenreIds);
+        var (price, freeCount) = ValidateAccess(req);
 
         var story = new Story
         {
@@ -115,6 +116,9 @@ public class StoryService(AppDbContext db, IWebHostEnvironment env) : IStoryServ
             Author = req.Author.Trim(),
             Description = req.Description?.Trim(),
             Status = req.Status,
+            AccessType = req.AccessType,
+            Price = price,
+            FreeChapterCount = freeCount,
             StoryGenres = genreIds.Select(gid => new StoryGenre { GenreId = gid }).ToList()
         };
 
@@ -131,11 +135,15 @@ public class StoryService(AppDbContext db, IWebHostEnvironment env) : IStoryServ
             ?? throw new NotFoundException("Không tìm thấy truyện");
 
         var genreIds = await ValidateGenresAsync(req.GenreIds);
+        var (price, freeCount) = ValidateAccess(req);
 
         story.Title = req.Title.Trim();
         story.Author = req.Author.Trim();
         story.Description = req.Description?.Trim();
         story.Status = req.Status;
+        story.AccessType = req.AccessType;
+        story.Price = price;
+        story.FreeChapterCount = freeCount;
         story.UpdatedAt = DateTime.UtcNow;
 
         var toRemove = story.StoryGenres.Where(sg => !genreIds.Contains(sg.GenreId)).ToList();
@@ -186,6 +194,24 @@ public class StoryService(AppDbContext db, IWebHostEnvironment env) : IStoryServ
         await db.SaveChangesAsync();
 
         return new CoverResponse(story.CoverUrl);
+    }
+
+    // PB16, PB17: kiểm tra chính sách truy cập, trả về giá và số chương miễn phí đã chuẩn hóa
+    private static (decimal Price, int FreeChapterCount) ValidateAccess(StoryRequest req)
+    {
+        switch (req.AccessType)
+        {
+            case AccessType.Free:
+                return (0, 0);
+            case AccessType.Paid:
+                if (req.Price <= 0)
+                    throw new BadRequestException("Truyện trả phí phải có giá lớn hơn 0");
+                return (Math.Round(req.Price, 2), 0);
+            default: // Mixed
+                if (req.Price <= 0)
+                    throw new BadRequestException("Truyện kết hợp phải có giá mua lớn hơn 0");
+                return (Math.Round(req.Price, 2), req.FreeChapterCount);
+        }
     }
 
     private async Task<List<int>> ValidateGenresAsync(List<int> ids)

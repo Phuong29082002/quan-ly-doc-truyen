@@ -12,6 +12,7 @@ import AdminGenresPage from "./pages/admin/AdminGenresPage";
 import AdminStoriesPage from "./pages/admin/AdminStoriesPage";
 import AdminStoryFormPage from "./pages/admin/AdminStoryFormPage";
 import AdminChapterFormPage from "./pages/admin/AdminChapterFormPage";
+import AdminPackagesPage from "./pages/admin/AdminPackagesPage";
 import NotFoundPage from "./pages/NotFoundPage";
 
 export default function App() {
@@ -34,6 +35,7 @@ export default function App() {
               <Route path="truyen/:id" element={<AdminStoryFormPage />} />
               <Route path="truyen/:id/chuong/moi" element={<AdminChapterFormPage />} />
               <Route path="chuong/:chapterId" element={<AdminChapterFormPage />} />
+              <Route path="goi-doc" element={<AdminPackagesPage />} />
             </Route>
 
             <Route path="*" element={<NotFoundPage />} />

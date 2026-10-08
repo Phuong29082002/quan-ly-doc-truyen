@@ -42,7 +42,7 @@ public class StoriesController(IStoryService stories, IChapterService chapters) 
     // PB14: đọc chương
     [HttpGet("{storyId:int}/chapters/{number:int}")]
     public async Task<ActionResult<ChapterContentDto>> ReadChapter(int storyId, int number)
-        => Ok(await chapters.ReadAsync(storyId, number, User.GetUserId()));
+        => Ok(await chapters.ReadAsync(storyId, number, User.GetUserId(), User.IsInRole("Admin")));
 
     // PB08: thêm chương
     [Authorize(Roles = "Admin")]

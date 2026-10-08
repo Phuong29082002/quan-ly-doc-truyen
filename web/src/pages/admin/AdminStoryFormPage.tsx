@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { genreApi, storyApi } from "../../api/catalog";
 import { getErrorMessage } from "../../api/client";
-import type { Genre, StoryDetail, StoryRequest, StoryStatus } from "../../api/types";
+import type { AccessType, Genre, StoryDetail, StoryRequest, StoryStatus } from "../../api/types";
 import Alert from "../../components/Alert";
 import CoverImage from "../../components/CoverImage";
 import { formatDateTime } from "../../utils/format";
@@ -54,6 +54,9 @@ function StoryForm({ genres, story, onSaved }: { genres: Genre[]; story: StoryDe
     author: story?.author ?? "",
     description: story?.description ?? "",
     status: story?.status ?? "Ongoing",
+    accessType: story?.accessType ?? "Free",
+    price: story?.price ?? 0,
+    freeChapterCount: story?.freeChapterCount ?? 0,
     genreIds: story?.genres.map((g) => g.id) ?? [],
   });
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
@@ -71,6 +74,8 @@ function StoryForm({ genres, story, onSaved }: { genres: Genre[]; story: StoryDe
     setMessage(null);
     if (!form.title.trim() || !form.author.trim()) return setMessage({ type: "error", text: "Vui lòng nhập tên truyện và tác giả" });
     if (form.genreIds.length === 0) return setMessage({ type: "error", text: "Chọn ít nhất một thể loại" });
+    if (form.accessType !== "Free" && !(form.price > 0)) return setMessage({ type: "error", text: "Truyện trả phí/kết hợp phải có giá lớn hơn 0" });
+    if (form.freeChapterCount < 0) return setMessage({ type: "error", text: "Số chương miễn phí không hợp lệ" });
 
     setSaving(true);
     try {
@@ -121,6 +126,35 @@ function StoryForm({ genres, story, onSaved }: { genres: Genre[]; story: StoryDe
             </label>
           ))}
         </div>
+      </div>
+
+      <div className="mt-4">
+        <span className="mb-1 block text-sm font-medium">Chính sách truy cập</span>
+        <div className="flex flex-wrap gap-4 text-sm">
+          {(["Free", "Paid", "Mixed"] as AccessType[]).map((a) => (
+            <label key={a} className="flex items-center gap-1.5">
+              <input type="radio" checked={form.accessType === a} onChange={() => setForm({ ...form, accessType: a })} />
+              {a === "Free" ? "Miễn phí" : a === "Paid" ? "Trả phí" : "Kết hợp"}
+            </label>
+          ))}
+        </div>
+        {form.accessType !== "Free" && (
+          <div className="mt-3 grid gap-4 sm:grid-cols-2">
+            <label className="block">
+              <span className="mb-1 block text-sm font-medium">Giá mua truyện (VNĐ) *</span>
+              <input type="number" min={0} step={1000} className={input} value={form.price} onChange={(e) => setForm({ ...form, price: Number(e.target.value) })} />
+            </label>
+            {form.accessType === "Mixed" && (
+              <label className="block">
+                <span className="mb-1 block text-sm font-medium">Số chương đầu miễn phí</span>
+                <input type="number" min={0} className={input} value={form.freeChapterCount} onChange={(e) => setForm({ ...form, freeChapterCount: Number(e.target.value) })} />
+              </label>
+            )}
+          </div>
+        )}
+        <p className="mt-1 text-xs text-gray-500">
+          Truyện kết hợp: N chương đầu miễn phí, ngoài ra có thể đánh dấu thêm từng chương miễn phí khi sửa chương.
+        </p>
       </div>
 
       <div className="mt-4">
@@ -207,6 +241,7 @@ function ChapterTable({ story }: { story: StoryDetail }) {
             <tr>
               <th className="w-16 py-2">Số</th>
               <th className="py-2">Tên chương</th>
+              <th className="py-2">Truy cập</th>
               <th className="py-2">Phát hành</th>
               <th className="py-2 text-right">Thao tác</th>
             </tr>
@@ -216,6 +251,7 @@ function ChapterTable({ story }: { story: StoryDetail }) {
               <tr key={c.id} className="border-t">
                 <td className="py-2">{c.number}</td>
                 <td className="py-2">{c.title}</td>
+                <td className="py-2">{c.isFree ? <span className="text-green-700">Miễn phí</span> : <span className="text-amber-700">Trả phí</span>}</td>
                 <td className="py-2">
                   {c.isPublished ? (
                     <span className="text-green-700">Đã phát hành</span>
