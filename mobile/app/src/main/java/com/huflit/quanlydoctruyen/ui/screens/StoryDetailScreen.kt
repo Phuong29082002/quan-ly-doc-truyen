@@ -32,8 +32,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.huflit.quanlydoctruyen.data.ApiClient
+import com.huflit.quanlydoctruyen.data.PackageItem
 import com.huflit.quanlydoctruyen.data.StoryDetail
 import com.huflit.quanlydoctruyen.data.UiState
+import com.huflit.quanlydoctruyen.data.formatVnd
 import com.huflit.quanlydoctruyen.data.load
 import com.huflit.quanlydoctruyen.ui.components.Badge
 import com.huflit.quanlydoctruyen.ui.components.CoverPlaceholder
@@ -71,6 +73,12 @@ fun StoryDetailScreen(storyId: Int, onRead: (Int) -> Unit, onBack: () -> Unit) {
 private fun StoryDetailContent(story: StoryDetail, onRead: (Int) -> Unit, modifier: Modifier) {
     val published = story.chapters.filter { it.isPublished }
 
+    // PB18: gói đọc đang bán áp dụng cho truyện này (admin đổi trên web thì hiện ở đây)
+    val packages by produceState<List<PackageItem>>(emptyList(), story.id) {
+        value = runCatching { ApiClient.api.packages() }.getOrDefault(emptyList())
+    }
+    val applicable = packages.filter { p -> p.scope == "All" || p.stories.any { it.id == story.id } }
+
     LazyColumn(modifier.fillMaxSize()) {
         item {
             Row(Modifier.padding(16.dp)) {
@@ -85,6 +93,8 @@ private fun StoryDetailContent(story: StoryDetail, onRead: (Int) -> Unit, modifi
                     Text("Lượt đọc: ${story.viewCount}", style = MaterialTheme.typography.bodyMedium)
                     Spacer(Modifier.height(6.dp))
                     StatusBadge(story.status)
+                    Spacer(Modifier.height(6.dp))
+                    Text(accessLabel(story), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
                 }
             }
         }
@@ -98,6 +108,23 @@ private fun StoryDetailContent(story: StoryDetail, onRead: (Int) -> Unit, modifi
                 }
                 if (!story.description.isNullOrBlank()) {
                     Text(story.description, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 12.dp))
+                }
+                if (story.accessType != "Free" && applicable.isNotEmpty()) {
+                    Text(
+                        "Gói đọc áp dụng",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                    )
+                    applicable.forEach { p ->
+                        val scope = if (p.scope == "All") "Tất cả truyện" else "Một số truyện"
+                        Text("${p.name}: ${formatVnd(p.price)} / ${p.durationDays} ngày ($scope)", style = MaterialTheme.typography.bodyMedium)
+                    }
+                    Text(
+                        "Chức năng đăng ký gói sẽ được bổ sung ở bản cập nhật tiếp theo.",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
                 }
                 Text(
                     "Danh sách chương",
@@ -127,4 +154,14 @@ private fun StoryDetailContent(story: StoryDetail, onRead: (Int) -> Unit, modifi
             HorizontalDivider(Modifier.padding(horizontal = 16.dp))
         }
     }
+}
+
+// PB16, PB17: chính sách truy cập và giá mua truyện
+private fun accessLabel(s: StoryDetail): String = when (s.accessType) {
+    "Paid" -> "Trả phí · Mua truyện ${formatVnd(s.price)}"
+    "Mixed" -> {
+        val free = if (s.freeChapterCount > 0) "${s.freeChapterCount} chương đầu miễn phí · " else ""
+        "Kết hợp · $free" + "Mua truyện ${formatVnd(s.price)}"
+    }
+    else -> "Miễn phí"
 }

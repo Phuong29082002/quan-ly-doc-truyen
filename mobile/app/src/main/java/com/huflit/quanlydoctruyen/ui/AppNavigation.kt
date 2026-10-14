@@ -52,6 +52,7 @@ fun AppNavigation() {
                         popUpTo(READ_ROUTE) { inclusive = true }
                     }
                 },
+                onLogin = { nav.navigate("login") },
                 onBack = { nav.popBackStack() }
             )
         }
