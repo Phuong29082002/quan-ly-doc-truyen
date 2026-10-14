@@ -1,5 +1,8 @@
 package com.huflit.quanlydoctruyen.data
 
+import java.text.NumberFormat
+import java.util.Locale
+
 // Khớp với DTO bên backend (QuanLyDocTruyen.API/DTOs)
 
 data class HealthResponse(val status: String, val time: String)
@@ -66,10 +69,28 @@ data class StoryDetail(
     val coverUrl: String?,
     val status: String,
     val accessType: String,
+    val price: Double,
+    val freeChapterCount: Int,
     val viewCount: Long,
     val genres: List<GenreRef>,
     val chapters: List<ChapterListItem>
 )
+
+// PB18: gói đọc tháng đang bán (GET /api/packages)
+data class PackageStoryRef(val id: Int, val title: String)
+
+data class PackageItem(
+    val id: Int,
+    val name: String,
+    val price: Double,
+    val durationDays: Int,
+    val scope: String,
+    val isActive: Boolean,
+    val stories: List<PackageStoryRef>
+)
+
+/** PB22: thông tin kèm lỗi 403 khi chương trả phí chưa có quyền đọc */
+data class LockInfo(val code: String, val storyTitle: String?, val price: Double?)
 
 data class ChapterContent(
     val id: Int,
@@ -81,5 +102,8 @@ data class ChapterContent(
     val prevNumber: Int?,
     val nextNumber: Int?
 )
+
+fun formatVnd(amount: Double): String =
+    NumberFormat.getIntegerInstance(Locale.forLanguageTag("vi-VN")).format(amount) + "đ"
 
 fun statusLabel(status: String) = if (status == "Completed") "Hoàn thành" else "Đang ra"

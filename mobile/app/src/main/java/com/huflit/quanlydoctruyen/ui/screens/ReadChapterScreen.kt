@@ -3,8 +3,10 @@ package com.huflit.quanlydoctruyen.ui.screens
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -34,8 +36,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.huflit.quanlydoctruyen.data.ApiClient
 import com.huflit.quanlydoctruyen.data.ChapterContent
+import com.huflit.quanlydoctruyen.data.LockInfo
 import com.huflit.quanlydoctruyen.data.SessionManager
 import com.huflit.quanlydoctruyen.data.UiState
+import com.huflit.quanlydoctruyen.data.formatVnd
 import com.huflit.quanlydoctruyen.data.load
 import com.huflit.quanlydoctruyen.ui.components.ErrorBox
 import com.huflit.quanlydoctruyen.ui.components.LoadingBox
@@ -43,9 +47,9 @@ import com.huflit.quanlydoctruyen.ui.components.LoadingBox
 // PB14: đọc chương, chuyển chương, chỉnh cỡ chữ, chế độ tối
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ReadChapterScreen(storyId: Int, number: Int, onGoTo: (Int) -> Unit, onBack: () -> Unit) {
+fun ReadChapterScreen(storyId: Int, number: Int, onGoTo: (Int) -> Unit, onLogin: () -> Unit, onBack: () -> Unit) {
     var retry by remember { mutableIntStateOf(0) }
-    val state by produceState<UiState<ChapterContent>>(UiState.Loading, storyId, number, retry) {
+    val state by produceState<UiState<ChapterContent>>(UiState.Loading, storyId, number, retry, SessionManager.user?.id) {
         value = UiState.Loading
         value = load { ApiClient.api.readChapter(storyId, number) }
     }
@@ -69,10 +73,10 @@ fun ReadChapterScreen(storyId: Int, number: Int, onGoTo: (Int) -> Unit, onBack: 
         Surface(Modifier.padding(padding).fillMaxSize(), color = background, contentColor = textColor) {
             when (val s = state) {
                 is UiState.Loading -> LoadingBox()
-                is UiState.Error -> ErrorBox(
-                    if (s.code == 403) "${s.message}\n(Chương trả phí sẽ mở ở Sprint 2)" else s.message,
-                    onRetry = if (s.code == 403) null else ({ retry++ })
-                )
+                is UiState.Error ->
+                    // PB22: chương trả phí chưa có quyền đọc
+                    if (s.lock != null) LockedChapter(number, s.lock, onLogin, onBack)
+                    else ErrorBox(s.message, onRetry = if (s.code == 403) null else ({ retry++ }))
                 is UiState.Success -> {
                     val c = s.data
                     Column(Modifier.verticalScroll(rememberScrollState(), true).padding(16.dp)) {
@@ -129,5 +133,38 @@ private fun ChapterNav(c: ChapterContent, onGoTo: (Int) -> Unit) {
             enabled = c.nextNumber != null,
             modifier = Modifier.weight(1f)
         ) { Text("Chương sau ›") }
+    }
+}
+
+@Composable
+private fun LockedChapter(number: Int, lock: LockInfo, onLogin: () -> Unit, onBack: () -> Unit) {
+    val loggedIn = SessionManager.user != null
+    Column(
+        Modifier.fillMaxSize().padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text("Chương $number là nội dung trả phí", fontWeight = FontWeight.Bold, fontSize = 20.sp, textAlign = TextAlign.Center)
+        if (!lock.storyTitle.isNullOrBlank()) {
+            Text(lock.storyTitle, modifier = Modifier.padding(top = 4.dp))
+        }
+        Spacer(Modifier.height(16.dp))
+
+        if (!loggedIn) {
+            Text("Vui lòng đăng nhập để đọc chương này.", textAlign = TextAlign.Center)
+            Button(onClick = onLogin, modifier = Modifier.padding(top = 12.dp)) { Text("Đăng nhập") }
+        } else {
+            Text("Bạn cần có gói đọc còn hạn hoặc mua truyện để đọc chương này.", textAlign = TextAlign.Center)
+            if (lock.price != null && lock.price > 0) {
+                Text("Giá mua truyện: ${formatVnd(lock.price)}", fontWeight = FontWeight.Medium, modifier = Modifier.padding(top = 8.dp))
+            }
+            Text(
+                "Chức năng đăng ký gói và mua truyện sẽ được bổ sung ở bản cập nhật tiếp theo.",
+                fontSize = 12.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
+        TextButton(onClick = onBack, modifier = Modifier.padding(top = 12.dp)) { Text("Về mục lục") }
     }
 }

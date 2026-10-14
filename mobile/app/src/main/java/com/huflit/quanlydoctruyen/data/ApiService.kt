@@ -49,12 +49,16 @@ interface ApiService {
     // PB14
     @GET("api/stories/{storyId}/chapters/{number}")
     suspend fun readChapter(@Path("storyId") storyId: Int, @Path("number") number: Int): ChapterContent
+
+    // PB18: gói đọc đang bán
+    @GET("api/packages")
+    suspend fun packages(): List<PackageItem>
 }
 
 object ApiClient {
-    // 10.0.2.2 = localhost của máy tính khi chạy trên emulator
-    // Chạy trên điện thoại thật: đổi thành IP máy tính, ví dụ "http://192.168.1.5:5086/"
-    private const val BASE_URL = "http://10.0.2.2:5086/"
+    // Điện thoại thật qua cáp USB: chạy `adb reverse tcp:5086 tcp:5086` rồi dùng localhost
+    // Emulator: đổi thành "http://10.0.2.2:5086/"
+    private const val BASE_URL = "http://localhost:5086/"
 
     private val http = OkHttpClient.Builder()
         .addInterceptor { chain ->
@@ -84,11 +88,13 @@ object ApiClient {
 fun Throwable.httpCode(): Int? = (this as? HttpException)?.code()
 
 /** Đọc câu lỗi trong ProblemDetails của API ("title" hoặc lỗi validate đầu tiên) */
-fun Throwable.toMessage(fallback: String = "Đã có lỗi xảy ra"): String = when (this) {
+fun Throwable.toMessage(
+    fallback: String = "Đã có lỗi xảy ra",
+    errorBody: String? = (this as? HttpException)?.let { runCatching { it.response()?.errorBody()?.string() }.getOrNull() }
+): String = when (this) {
     is HttpException -> {
-        val body = runCatching { response()?.errorBody()?.string() }.getOrNull()
         val parsed = runCatching {
-            val json = JsonParser.parseString(body).asJsonObject
+            val json = JsonParser.parseString(errorBody).asJsonObject
             val errors = json.getAsJsonObject("errors")
             val firstError = errors?.entrySet()?.firstOrNull()?.value?.asJsonArray?.firstOrNull()?.asString
             firstError ?: json.get("title")?.asString
@@ -103,3 +109,18 @@ fun Throwable.toMessage(fallback: String = "Đã có lỗi xảy ra"): String = 
     is IOException -> "Không kết nối được máy chủ ($message)"
     else -> fallback
 }
+
+/** PB22: đọc code/price/storyTitle mà API gắn vào lỗi 403 của chương trả phí */
+fun parseLockInfo(errorBody: String?): LockInfo? = runCatching {
+    val json = JsonParser.parseString(errorBody).asJsonObject
+    val code = json.get("code")?.takeUnless { it.isJsonNull }?.asString
+    if (code != "LoginRequired" && code != "PurchaseRequired") {
+        null
+    } else {
+        LockInfo(
+            code,
+            json.get("storyTitle")?.takeUnless { it.isJsonNull }?.asString,
+            json.get("price")?.takeUnless { it.isJsonNull }?.asDouble
+        )
+    }
+}.getOrNull()
