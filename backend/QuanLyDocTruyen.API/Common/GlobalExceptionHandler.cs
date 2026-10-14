@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Mvc;
 
 namespace QuanLyDocTruyen.API.Common;
 
@@ -17,11 +18,18 @@ public class GlobalExceptionHandler(
         if (status == 500)
             logger.LogError(ex, "Lỗi chưa xử lý");
 
+        var problem = new ProblemDetails { Status = status, Title = title };
+        if (ex is AppException { Extensions.Count: > 0 } appEx)
+        {
+            foreach (var (key, value) in appEx.Extensions)
+                problem.Extensions[key] = value;
+        }
+
         context.Response.StatusCode = status;
         return await problemDetails.TryWriteAsync(new ProblemDetailsContext
         {
             HttpContext = context,
-            ProblemDetails = { Status = status, Title = title },
+            ProblemDetails = problem,
             Exception = ex
         });
     }

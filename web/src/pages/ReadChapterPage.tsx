@@ -1,11 +1,20 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router";
+import { Link, useLocation, useNavigate, useParams } from "react-router";
 import axios from "axios";
 import { storyApi } from "../api/catalog";
 import { getErrorMessage } from "../api/client";
 import type { ChapterContent } from "../api/types";
+import { useAuth } from "../auth/useAuth";
+import { formatNumber } from "../utils/format";
 
 const SETTINGS_KEY = "qldt_reader";
+
+// PB22: thông tin kèm lỗi 403 khi chương trả phí chưa có quyền đọc
+interface LockInfo {
+  code: "LoginRequired" | "PurchaseRequired";
+  storyTitle?: string;
+  price?: number;
+}
 
 interface ReaderSettings {
   fontSize: number;
@@ -29,8 +38,10 @@ export default function ReadChapterPage() {
   const number = Number(params.number);
   const key = `${storyId}/${number}`;
   const navigate = useNavigate();
+  const location = useLocation();
+  const { user } = useAuth();
 
-  const [state, setState] = useState<{ key: string; data?: ChapterContent; error?: string; locked?: boolean }>();
+  const [state, setState] = useState<{ key: string; data?: ChapterContent; error?: string; lock?: LockInfo }>();
   const [settings, setSettings] = useState<ReaderSettings>(loadSettings);
 
   useEffect(() => {
@@ -44,8 +55,12 @@ export default function ReadChapterPage() {
       })
       .catch((err) => {
         if (ignore) return;
-        const locked = axios.isAxiosError(err) && err.response?.status === 403;
-        setState({ key, error: getErrorMessage(err, "Không tải được chương"), locked });
+        let lock: LockInfo | undefined;
+        if (axios.isAxiosError(err) && err.response?.status === 403) {
+          const d = err.response.data as Partial<LockInfo> | undefined;
+          if (d?.code === "LoginRequired" || d?.code === "PurchaseRequired") lock = d as LockInfo;
+        }
+        setState({ key, error: getErrorMessage(err, "Không tải được chương"), lock });
       });
     return () => {
       ignore = true;
@@ -64,10 +79,40 @@ export default function ReadChapterPage() {
 
   if (state?.key !== key) return <p className="py-12 text-center text-gray-500">Đang tải chương...</p>;
 
+  if (state.lock) {
+    const lock = state.lock;
+    return (
+      <div className="mx-auto max-w-lg rounded-lg border bg-white p-8 text-center">
+        <h1 className="text-xl font-bold">Chương {number} là nội dung trả phí</h1>
+        {lock.storyTitle && <p className="mt-1 text-sm text-gray-500">{lock.storyTitle}</p>}
+
+        {lock.code === "LoginRequired" && !user ? (
+          <>
+            <p className="mt-4 text-gray-700">Vui lòng đăng nhập để đọc chương này.</p>
+            <div className="mt-5 flex justify-center gap-3">
+              <Link to="/login" state={{ from: location.pathname }} className="rounded bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700">Đăng nhập</Link>
+              <Link to="/register" className="rounded border px-5 py-2 text-sm hover:bg-gray-50">Đăng ký</Link>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="mt-4 text-gray-700">Bạn cần có gói đọc còn hạn hoặc mua truyện để đọc chương này.</p>
+            {lock.price ? <p className="mt-2 text-sm text-gray-600">Giá mua truyện: <b>{formatNumber(lock.price)}đ</b></p> : null}
+            <p className="mt-3 text-xs text-gray-500">Chức năng đăng ký gói và mua truyện sẽ được bổ sung ở bước tiếp theo.</p>
+          </>
+        )}
+
+        <div className="mt-6">
+          <Link to={`/truyen/${storyId}`} className="text-sm text-blue-600 underline">Quay lại trang truyện</Link>
+        </div>
+      </div>
+    );
+  }
+
   if (state.error || !state.data) {
     return (
       <div className="py-12 text-center">
-        <p className={`mb-4 ${state.locked ? "text-orange-600" : "text-red-600"}`}>{state.error}</p>
+        <p className="mb-4 text-red-600">{state.error}</p>
         <Link to={`/truyen/${storyId}`} className="text-blue-600 underline">Quay lại trang truyện</Link>
       </div>
     );
