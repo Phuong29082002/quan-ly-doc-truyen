@@ -49,8 +49,11 @@ public record StoryListItemDto(
     DateTime CreatedAt,
     DateTime UpdatedAt);
 
-/// <summary>IsFree = đọc được miễn phí; IsPublished = false nghĩa là chương hẹn giờ (chỉ Admin thấy)</summary>
-public record ChapterListItemDto(int Id, int Number, string Title, bool IsFree, bool IsPublished, DateTime PublishAt);
+/// <summary>
+/// IsFree = đọc được miễn phí; IsPublished = false nghĩa là chương hẹn giờ (chỉ Admin thấy);
+/// CanRead = người đang xem đọc được (miễn phí, hoặc có gói / đã mua) → Web, Mobile hiện nhãn "Đã mở khóa"
+/// </summary>
+public record ChapterListItemDto(int Id, int Number, string Title, bool IsFree, bool IsPublished, DateTime PublishAt, bool CanRead);
 
 public record StoryDetailDto(
     int Id,
@@ -66,7 +69,9 @@ public record StoryDetailDto(
     DateTime CreatedAt,
     DateTime UpdatedAt,
     List<GenreRefDto> Genres,
-    List<ChapterListItemDto> Chapters);
+    List<ChapterListItemDto> Chapters,
+    bool HasFullAccess,
+    string? AccessSource);
 
 public class StoryRequest
 {
@@ -130,3 +135,7 @@ public record ChapterContentDto(
     DateTime PublishAt,
     int? PrevNumber,
     int? NextNumber);
+
+// ---------- Ảnh minh họa trong chương (PB43) ----------
+
+public record ImageUploadResponse(string Url);

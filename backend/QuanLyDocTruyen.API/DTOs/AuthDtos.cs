@@ -33,3 +33,22 @@ public class LoginRequest
 public record UserDto(int Id, string Username, string Email, string DisplayName, string Role);
 
 public record AuthResponse(string Token, DateTime ExpiresAt, UserDto User);
+
+// ---------- Hồ sơ cá nhân (PB04) ----------
+
+public class UpdateProfileRequest
+{
+    [Required(ErrorMessage = "Vui lòng nhập tên hiển thị")]
+    [StringLength(100, ErrorMessage = "Tên hiển thị tối đa 100 ký tự")]
+    public string DisplayName { get; set; } = "";
+}
+
+public class ChangePasswordRequest
+{
+    [Required(ErrorMessage = "Vui lòng nhập mật khẩu hiện tại")]
+    public string CurrentPassword { get; set; } = "";
+
+    [Required(ErrorMessage = "Vui lòng nhập mật khẩu mới")]
+    [StringLength(100, MinimumLength = 6, ErrorMessage = "Mật khẩu mới tối thiểu 6 ký tự")]
+    public string NewPassword { get; set; } = "";
+}

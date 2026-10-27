@@ -9,7 +9,7 @@ namespace QuanLyDocTruyen.API.Services;
 public interface IStoryService
 {
     Task<PagedResult<StoryListItemDto>> SearchAsync(StoryQuery q);
-    Task<StoryDetailDto> GetDetailAsync(int id, bool includeUnpublished);
+    Task<StoryDetailDto> GetDetailAsync(int id, bool includeUnpublished, int? userId = null, bool isAdmin = false);
     Task<StoryDetailDto> CreateAsync(StoryRequest req);
     Task<StoryDetailDto> UpdateAsync(int id, StoryRequest req);
     Task<CoverResponse> UploadCoverAsync(int id, IFormFile file);
@@ -68,8 +68,8 @@ public class StoryService(AppDbContext db, IWebHostEnvironment env) : IStoryServ
         return new PagedResult<StoryListItemDto>(items, q.Page, q.PageSize, total, totalPages);
     }
 
-    // PB13: chi tiết truyện + danh sách chương kèm trạng thái truy cập
-    public async Task<StoryDetailDto> GetDetailAsync(int id, bool includeUnpublished)
+    // PB13, PB22: chi tiết truyện + danh sách chương kèm trạng thái truy cập của người đang xem
+    public async Task<StoryDetailDto> GetDetailAsync(int id, bool includeUnpublished, int? userId = null, bool isAdmin = false)
     {
         var now = DateTime.UtcNow;
 
@@ -88,20 +88,33 @@ public class StoryService(AppDbContext db, IWebHostEnvironment env) : IStoryServ
             .Select(c => new { c.Id, c.Number, c.Title, c.IsFree, c.PublishAt })
             .ToListAsync();
 
+        // Nguồn quyền đọc toàn bộ truyện: Admin / đã mua truyện / gói đọc còn hạn
+        string? accessSource = null;
+        if (isAdmin)
+            accessSource = "Admin";
+        else if (userId is int uid && story.AccessType != AccessType.Free)
+            accessSource = (await AccessRules.GetUserAccessAsync(db, uid, id, now)) switch
+            {
+                ReadAccess.Purchased => "Purchase",
+                ReadAccess.Package => "Package",
+                _ => null
+            };
+        var hasFullAccess = accessSource is not null;
+
         var chapterDtos = chapters
-            .Select(c => new ChapterListItemDto(
-                c.Id,
-                c.Number,
-                c.Title,
-                AccessRules.IsFreeChapter(story.AccessType, story.FreeChapterCount, c.Number, c.IsFree),
-                c.PublishAt <= now,
-                c.PublishAt))
+            .Select(c =>
+            {
+                var isFree = AccessRules.IsFreeChapter(story.AccessType, story.FreeChapterCount, c.Number, c.IsFree);
+                return new ChapterListItemDto(
+                    c.Id, c.Number, c.Title, isFree, c.PublishAt <= now, c.PublishAt,
+                    CanRead: isFree || hasFullAccess);
+            })
             .ToList();
 
         return new StoryDetailDto(
             story.Id, story.Title, story.Author, story.Description, story.CoverUrl,
             story.Status, story.AccessType, story.Price, story.FreeChapterCount, story.ViewCount,
-            story.CreatedAt, story.UpdatedAt, genres, chapterDtos);
+            story.CreatedAt, story.UpdatedAt, genres, chapterDtos, hasFullAccess, accessSource);
     }
 
     // PB06: tạo truyện, gán nhiều thể loại
@@ -125,7 +138,7 @@ public class StoryService(AppDbContext db, IWebHostEnvironment env) : IStoryServ
         db.Stories.Add(story);
         await db.SaveChangesAsync();
 
-        return await GetDetailAsync(story.Id, includeUnpublished: true);
+        return await GetDetailAsync(story.Id, true, null, true);
     }
 
     // PB06, PB07: cập nhật thông tin + tình trạng phát hành
@@ -154,7 +167,7 @@ public class StoryService(AppDbContext db, IWebHostEnvironment env) : IStoryServ
 
         await db.SaveChangesAsync();
 
-        return await GetDetailAsync(story.Id, includeUnpublished: true);
+        return await GetDetailAsync(story.Id, true, null, true);
     }
 
     // PB06: upload ảnh bìa

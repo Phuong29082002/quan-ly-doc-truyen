@@ -6,6 +6,7 @@ import { getErrorMessage } from "../api/client";
 import type { ChapterContent } from "../api/types";
 import { useAuth } from "../auth/useAuth";
 import { formatNumber } from "../utils/format";
+import ChapterContentView from "../components/ChapterContentView";
 
 const SETTINGS_KEY = "qldt_reader";
 
@@ -98,7 +99,8 @@ export default function ReadChapterPage() {
           <>
             <p className="mt-4 text-gray-700">Bạn cần có gói đọc còn hạn hoặc mua truyện để đọc chương này.</p>
             {lock.price ? <p className="mt-2 text-sm text-gray-600">Giá mua truyện: <b>{formatNumber(lock.price)}đ</b></p> : null}
-            <p className="mt-3 text-xs text-gray-500">Chức năng đăng ký gói và mua truyện sẽ được bổ sung ở bước tiếp theo.</p>
+            <Link to="/goi-doc" className="mt-4 inline-block rounded bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700">Xem các gói đọc</Link>
+            <p className="mt-3 text-xs text-gray-500">Chức năng thanh toán sẽ được bổ sung ở Sprint 3.</p>
           </>
         )}
 
@@ -150,11 +152,9 @@ export default function ReadChapterPage() {
 
       {nav}
 
-      <article className="my-8 leading-loose" style={{ fontSize: settings.fontSize }}>
-        {c.content.split(/\n+/).filter((p) => p.trim()).map((p, i) => (
-          <p key={i} className="mb-4">{p}</p>
-        ))}
-      </article>
+      <div className="my-8">
+        <ChapterContentView content={c.content} fontSize={settings.fontSize} dark={settings.dark} />
+      </div>
 
       {nav}
     </div>

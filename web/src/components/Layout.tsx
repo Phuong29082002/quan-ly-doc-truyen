@@ -20,6 +20,7 @@ export default function Layout() {
           <NavLink to="/" className="text-lg font-bold text-blue-600">Đọc Truyện</NavLink>
           <nav className="flex gap-4 text-sm">
             <NavLink to="/" end className={linkClass}>Trang chủ</NavLink>
+            <NavLink to="/goi-doc" className={linkClass}>Gói đọc</NavLink>
             {/* PB03: chỉ Admin mới thấy menu Quản trị */}
             {isAdmin && <NavLink to="/admin" className={linkClass}>Quản trị</NavLink>}
           </nav>
@@ -27,10 +28,10 @@ export default function Layout() {
           <div className="ml-auto flex items-center gap-3 text-sm">
             {user ? (
               <>
-                <span className="text-gray-700">
+                <NavLink to="/tai-khoan" className="text-gray-700 hover:text-blue-600" title="Tài khoản của tôi">
                   Xin chào, <span className="font-semibold">{user.displayName}</span>
                   {isAdmin && <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-700">Admin</span>}
-                </span>
+                </NavLink>
                 <button onClick={handleLogout} className="px-3 py-1.5 rounded border border-gray-300 hover:bg-gray-100">
                   Đăng xuất
                 </button>

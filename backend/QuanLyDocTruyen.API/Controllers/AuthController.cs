@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using QuanLyDocTruyen.API.Common;
 using QuanLyDocTruyen.API.DTOs;
 using QuanLyDocTruyen.API.Services;
 
@@ -23,5 +24,20 @@ public class AuthController(IAuthService auth) : ControllerBase
     {
         var userId = int.Parse(User.FindFirst("sub")!.Value);
         return Ok(await auth.GetMeAsync(userId));
+    }
+
+    // PB04: cập nhật hồ sơ
+    [Authorize]
+    [HttpPut("me")]
+    public async Task<ActionResult<UserDto>> UpdateMe(UpdateProfileRequest req)
+        => Ok(await auth.UpdateProfileAsync(User.GetUserId()!.Value, req));
+
+    // PB04: đổi mật khẩu
+    [Authorize]
+    [HttpPost("change-password")]
+    public async Task<IActionResult> ChangePassword(ChangePasswordRequest req)
+    {
+        await auth.ChangePasswordAsync(User.GetUserId()!.Value, req);
+        return NoContent();
     }
 }

@@ -1,15 +1,18 @@
 package com.huflit.quanlydoctruyen.data
 
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import com.google.gson.JsonParser
 import okhttp3.OkHttpClient
 import retrofit2.HttpException
+import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
 import java.io.IOException
@@ -27,6 +30,13 @@ interface ApiService {
 
     @GET("api/auth/me")
     suspend fun me(): UserDto
+
+    // PB04: cập nhật hồ sơ, đổi mật khẩu (API trả 204 nên dùng Response<Unit>)
+    @PUT("api/auth/me")
+    suspend fun updateProfile(@Body body: UpdateProfileRequest): UserDto
+
+    @POST("api/auth/change-password")
+    suspend fun changePassword(@Body body: ChangePasswordRequest): Response<Unit>
 
     // PB05
     @GET("api/genres")
@@ -56,11 +66,18 @@ interface ApiService {
 }
 
 object ApiClient {
-    // Điện thoại thật qua cáp USB: chạy `adb reverse tcp:5086 tcp:5086` rồi dùng localhost
-    // Emulator: đổi thành "http://10.0.2.2:5086/"
-    private const val BASE_URL = "http://localhost:5086/"
+    // Emulator gọi máy tính qua 10.0.2.2; điện thoại thật cắm cáp USB thì chạy
+    // `adb reverse tcp:5086 tcp:5086` và dùng localhost. App tự nhận biết đang chạy trên máy ảo hay máy thật.
+    val BASE_URL: String = if (isEmulator()) "http://10.0.2.2:5086/" else "http://localhost:5086/"
 
-    private val http = OkHttpClient.Builder()
+    private fun isEmulator(): Boolean =
+        Build.FINGERPRINT.startsWith("generic") || Build.FINGERPRINT.contains("emulator") ||
+            Build.HARDWARE.contains("ranchu") || Build.HARDWARE.contains("goldfish") ||
+            Build.MODEL.contains("sdk_gphone") || Build.MODEL.contains("Emulator") ||
+            Build.PRODUCT.contains("sdk")
+
+    /** Dùng chung cho Retrofit và tải ảnh (RemoteImage) */
+    val http: OkHttpClient = OkHttpClient.Builder()
         .addInterceptor { chain ->
             val token = SessionManager.token
             val request = if (token != null) {
@@ -83,6 +100,12 @@ object ApiClient {
         .addConverterFactory(GsonConverterFactory.create())
         .build()
         .create(ApiService::class.java)
+}
+
+/** Ảnh trên server ("/uploads/..", "/samples/..") -> URL đầy đủ */
+fun assetUrl(path: String?): String? {
+    if (path.isNullOrBlank()) return null
+    return if (path.startsWith("http")) path else ApiClient.BASE_URL.trimEnd('/') + path
 }
 
 fun Throwable.httpCode(): Int? = (this as? HttpException)?.code()

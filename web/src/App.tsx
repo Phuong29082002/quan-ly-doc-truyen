@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 import AuthProvider from "./auth/AuthProvider";
 import RequireAdmin from "./auth/RequireAdmin";
+import RequireAuth from "./auth/RequireAuth";
 import Layout from "./components/Layout";
 import HomePage from "./pages/HomePage";
 import StoryDetailPage from "./pages/StoryDetailPage";
@@ -14,6 +15,8 @@ import AdminStoryFormPage from "./pages/admin/AdminStoryFormPage";
 import AdminChapterFormPage from "./pages/admin/AdminChapterFormPage";
 import AdminPackagesPage from "./pages/admin/AdminPackagesPage";
 import NotFoundPage from "./pages/NotFoundPage";
+import PricingPage from "./pages/PricingPage";
+import ProfilePage from "./pages/ProfilePage";
 
 export default function App() {
   return (
@@ -26,6 +29,8 @@ export default function App() {
             <Route path="/truyen/:id/chuong/:number" element={<ReadChapterPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/goi-doc" element={<PricingPage />} />
+            <Route path="/tai-khoan" element={<RequireAuth><ProfilePage /></RequireAuth>} />
 
             <Route path="/admin" element={<RequireAdmin><AdminPage /></RequireAdmin>}>
               <Route index element={<Navigate to="truyen" replace />} />

@@ -17,6 +17,8 @@ public interface IAuthService
     Task<AuthResponse> RegisterAsync(RegisterRequest req);
     Task<AuthResponse> LoginAsync(LoginRequest req);
     Task<UserDto> GetMeAsync(int userId);
+    Task<UserDto> UpdateProfileAsync(int userId, UpdateProfileRequest req);
+    Task ChangePasswordAsync(int userId, ChangePasswordRequest req);
 }
 
 public class AuthService(
@@ -72,6 +74,29 @@ public class AuthService(
         var user = await db.Users.FindAsync(userId)
             ?? throw new NotFoundException("Không tìm thấy tài khoản");
         return ToDto(user);
+    }
+
+    // PB04: đổi tên hiển thị
+    public async Task<UserDto> UpdateProfileAsync(int userId, UpdateProfileRequest req)
+    {
+        var user = await db.Users.FindAsync(userId) ?? throw new NotFoundException("Không tìm thấy tài khoản");
+        user.DisplayName = req.DisplayName.Trim();
+        await db.SaveChangesAsync();
+        return ToDto(user);
+    }
+
+    // PB04: đổi mật khẩu (phải nhập đúng mật khẩu cũ)
+    public async Task ChangePasswordAsync(int userId, ChangePasswordRequest req)
+    {
+        var user = await db.Users.FindAsync(userId) ?? throw new NotFoundException("Không tìm thấy tài khoản");
+
+        if (hasher.VerifyHashedPassword(user, user.PasswordHash, req.CurrentPassword) == PasswordVerificationResult.Failed)
+            throw new BadRequestException("Mật khẩu hiện tại không đúng");
+        if (req.CurrentPassword == req.NewPassword)
+            throw new BadRequestException("Mật khẩu mới phải khác mật khẩu hiện tại");
+
+        user.PasswordHash = hasher.HashPassword(user, req.NewPassword);
+        await db.SaveChangesAsync();
     }
 
     private AuthResponse CreateAuthResponse(User user)

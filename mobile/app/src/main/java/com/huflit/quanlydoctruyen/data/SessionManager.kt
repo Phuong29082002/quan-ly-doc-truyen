@@ -37,9 +37,11 @@ object SessionManager {
         val savedUser = prefs.getString(KEY_USER, null)
         val expires = prefs.getString(KEY_EXPIRES, null)
 
-        if (savedToken != null && savedUser != null && expires != null && !isExpired(expires)) {
+        val saved = savedUser?.let { runCatching { gson.fromJson(it, UserDto::class.java) }.getOrNull() }
+        // App chỉ dành cho độc giả: phiên Admin cũ (nếu có) bị xóa
+        if (savedToken != null && saved != null && saved.role != "Admin" && expires != null && !isExpired(expires)) {
             token = savedToken
-            user = gson.fromJson(savedUser, UserDto::class.java)
+            user = saved
         } else {
             logout()
         }
@@ -53,6 +55,12 @@ object SessionManager {
             .apply()
         token = res.token
         user = res.user
+    }
+
+    /** PB04: cập nhật thông tin sau khi đổi tên hiển thị */
+    fun updateUser(updated: UserDto) {
+        prefs.edit().putString(KEY_USER, gson.toJson(updated)).apply()
+        user = updated
     }
 
     fun logout() {

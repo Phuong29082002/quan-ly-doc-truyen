@@ -26,6 +26,11 @@ data class RegisterRequest(
     val displayName: String?
 )
 
+// PB04
+data class UpdateProfileRequest(val displayName: String)
+
+data class ChangePasswordRequest(val currentPassword: String, val newPassword: String)
+
 data class GenreRef(val id: Int, val name: String)
 
 data class Genre(val id: Int, val name: String, val storyCount: Int)
@@ -58,7 +63,9 @@ data class ChapterListItem(
     val title: String,
     val isFree: Boolean,
     val isPublished: Boolean,
-    val publishAt: String
+    val publishAt: String,
+    /** Người đang xem đọc được (miễn phí, có gói còn hạn hoặc đã mua) */
+    val canRead: Boolean
 )
 
 data class StoryDetail(
@@ -73,7 +80,11 @@ data class StoryDetail(
     val freeChapterCount: Int,
     val viewCount: Long,
     val genres: List<GenreRef>,
-    val chapters: List<ChapterListItem>
+    val chapters: List<ChapterListItem>,
+    /** Có quyền đọc toàn bộ truyện */
+    val hasFullAccess: Boolean,
+    /** "Package" | "Purchase" | "Admin" | null */
+    val accessSource: String?
 )
 
 // PB18: gói đọc tháng đang bán (GET /api/packages)

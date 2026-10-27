@@ -14,6 +14,11 @@ export function saveAuth(res: AuthResponse) {
   localStorage.setItem(EXPIRES_KEY, res.expiresAt);
 }
 
+/** Cập nhật thông tin user đã lưu (sau khi đổi tên hiển thị) */
+export function saveUser(user: User) {
+  localStorage.setItem(USER_KEY, JSON.stringify(user));
+}
+
 export function clearAuth() {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);

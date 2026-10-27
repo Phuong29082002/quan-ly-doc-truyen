@@ -49,7 +49,7 @@ import com.huflit.quanlydoctruyen.data.ApiClient
 import com.huflit.quanlydoctruyen.data.SessionManager
 import com.huflit.quanlydoctruyen.data.StoryListItem
 import com.huflit.quanlydoctruyen.data.toMessage
-import com.huflit.quanlydoctruyen.ui.components.CoverPlaceholder
+import com.huflit.quanlydoctruyen.ui.components.CoverImage
 import com.huflit.quanlydoctruyen.ui.components.ErrorBox
 import com.huflit.quanlydoctruyen.ui.components.StatusBadge
 import kotlinx.coroutines.launch
@@ -60,7 +60,7 @@ private val SORTS = listOf("updated" to "Mới cập nhật", "newest" to "Mới
 // PB11: tìm kiếm truyện, PB12: các danh sách gợi ý
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(onOpenStory: (Int) -> Unit, onLogin: () -> Unit) {
+fun HomeScreen(onOpenStory: (Int) -> Unit, onLogin: () -> Unit, onProfile: () -> Unit) {
     var input by rememberSaveable { mutableStateOf("") }
     var keyword by rememberSaveable { mutableStateOf("") }
     var sort by rememberSaveable { mutableStateOf("updated") }
@@ -118,8 +118,8 @@ fun HomeScreen(onOpenStory: (Int) -> Unit, onLogin: () -> Unit) {
                 title = { Text("Đọc Truyện", fontWeight = FontWeight.Bold) },
                 actions = {
                     if (user != null) {
-                        Text(user.displayName, style = MaterialTheme.typography.bodyMedium)
-                        TextButton(onClick = { SessionManager.logout() }) { Text("Đăng xuất") }
+                        // PB04: bấm vào tên để mở trang tài khoản (có nút đăng xuất)
+                        TextButton(onClick = onProfile) { Text("👤 ${user.displayName}", maxLines = 1, overflow = TextOverflow.Ellipsis) }
                     } else {
                         TextButton(onClick = onLogin) { Text("Đăng nhập") }
                     }
@@ -187,7 +187,7 @@ fun HomeScreen(onOpenStory: (Int) -> Unit, onLogin: () -> Unit) {
 private fun StoryRow(story: StoryListItem, onClick: () -> Unit) {
     Card(Modifier.fillMaxWidth().clickable(onClick = onClick)) {
         Row(Modifier.padding(10.dp)) {
-            CoverPlaceholder(story.title, Modifier.width(64.dp).height(86.dp))
+            CoverImage(story.coverUrl, story.title, Modifier.width(64.dp).height(86.dp))
             Spacer(Modifier.size(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(story.title, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)

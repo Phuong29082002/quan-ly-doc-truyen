@@ -9,4 +9,10 @@ export const authApi = {
     api.post<AuthResponse>("/api/auth/register", data).then((r) => r.data),
 
   me: () => api.get<User>("/api/auth/me").then((r) => r.data),
+
+  // PB04
+  updateProfile: (displayName: string) => api.put<User>("/api/auth/me", { displayName }).then((r) => r.data),
+
+  changePassword: (currentPassword: string, newPassword: string) =>
+    api.post("/api/auth/change-password", { currentPassword, newPassword }),
 };

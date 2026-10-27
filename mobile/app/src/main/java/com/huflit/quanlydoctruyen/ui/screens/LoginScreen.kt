@@ -57,8 +57,13 @@ fun LoginScreen(onSuccess: () -> Unit, onRegister: () -> Unit, onBack: () -> Uni
             loading = true
             try {
                 val res = ApiClient.api.login(LoginRequest(login.trim(), password))
-                SessionManager.save(res)
-                onSuccess()
+                // Ứng dụng di động chỉ dành cho độc giả; quản trị viên dùng trang web
+                if (res.user.role == "Admin") {
+                    error = "Tài khoản quản trị chỉ sử dụng trên trang web. Ứng dụng di động dành cho độc giả."
+                } else {
+                    SessionManager.save(res)
+                    onSuccess()
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

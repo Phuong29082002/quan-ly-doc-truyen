@@ -3,6 +3,7 @@ import type { StoryListItem } from "../api/types";
 import { timeAgo } from "../utils/format";
 import CoverImage from "./CoverImage";
 import StatusBadge from "./StatusBadge";
+import AccessBadge from "./AccessBadge";
 
 export default function StoryCard({ story }: { story: StoryListItem }) {
   return (
@@ -15,6 +16,11 @@ export default function StoryCard({ story }: { story: StoryListItem }) {
           <StatusBadge status={story.status} />
           <span>{story.chapterCount} chương</span>
         </div>
+        {story.accessType !== "Free" && (
+          <div className="mt-1.5">
+            <AccessBadge accessType={story.accessType} />
+          </div>
+        )}
         <p className="mt-1 text-xs text-gray-400">Cập nhật {timeAgo(story.updatedAt)}</p>
       </div>
     </Link>

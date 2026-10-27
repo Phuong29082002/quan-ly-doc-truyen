@@ -7,6 +7,8 @@ export interface AuthContextValue {
   login: (login: string, password: string) => Promise<User>;
   register: (data: RegisterData) => Promise<User>;
   logout: () => void;
+  /** Cập nhật user trong bộ nhớ + localStorage (PB04) */
+  updateUser: (user: User) => void;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);

@@ -86,6 +86,117 @@ public static class DbSeeder
             });
             await db.SaveChangesAsync();
         }
+
+        await SeedSprint2Async(db, hasher);
+        await SeedIllustratedStoryAsync(db);
+    }
+
+    /// <summary>
+    /// PB43: truyện mẫu có chương xen kẽ chữ và ảnh minh họa. Ảnh nằm trong wwwroot/samples (ảnh tự vẽ, không bản quyền).
+    /// Cú pháp chèn ảnh trong nội dung chương: một dòng riêng dạng ![mô tả](đường dẫn ảnh)
+    /// </summary>
+    private static async Task SeedIllustratedStoryAsync(AppDbContext db)
+    {
+        const string title = "Chuyến Tàu Đêm Qua Đèo";
+        if (await db.Stories.AnyAsync(s => s.Title == title)) return;
+
+        var genreId = await db.Genres.Where(g => g.Name == "Huyền huyễn").Select(g => g.Id).FirstOrDefaultAsync();
+        var now = DateTime.UtcNow;
+        var story = NewStory(
+            title, "Nhóm 3 HUFLIT", StoryStatus.Ongoing,
+            "Cô sinh viên Lan lỡ chuyến xe cuối cùng về quê và bước lên một đoàn tàu đêm không có trong lịch chạy. Truyện có tranh minh họa ở mỗi chương.",
+            genreId > 0 ? new[] { genreId } : Array.Empty<int>(), now.AddDays(-4), now.AddHours(-1),
+            ("Đoàn tàu không có trong lịch",
+                "Mười một giờ đêm, sân ga vắng tanh. Lan nhìn bảng giờ tàu lần thứ ba: chuyến cuối đã chạy từ lúc chín giờ.\n\n" +
+                "![Đoàn tàu đêm băng qua dãy núi dưới ánh trăng](/samples/tau-dem.jpg)\n\n" +
+                "Vậy mà từ phía đèo, một đoàn tàu bốn toa sáng đèn vàng ấm đang chậm rãi tiến vào. Không còi, không tiếng loa thông báo.\n\n" +
+                "Cửa toa cuối mở ra ngay trước mặt cô, như thể đang chờ."),
+            ("Sân ga lúc hoàng hôn",
+                "Lan tỉnh dậy khi nắng chiều đã nhuộm cam cả bầu trời. Đoàn tàu dừng ở một sân ga nhỏ cô chưa từng thấy trên bản đồ.\n\n" +
+                "![Nhà ga nhỏ lúc hoàng hôn, cột đèn vừa bật sáng](/samples/san-ga.jpg)\n\n" +
+                "Kỳ lạ là cô nhớ rất rõ mình lên tàu lúc nửa đêm. Ông soát vé già mỉm cười: \"Ở tuyến này, thời gian chạy theo ý của hành khách.\""),
+            ("Cây cầu qua rừng thông",
+                "Sáng hôm sau, đoàn tàu men theo sườn núi rồi lăn bánh lên một cây cầu đá cong vắt ngang rừng thông.\n\n" +
+                "![Cây cầu đá bắc qua rừng thông dưới chân núi](/samples/cau-da.jpg)\n\n" +
+                "Lan áp mặt vào cửa kính. Bên dưới, giữa những ngọn thông, cô thấy mái nhà của bà ngoại, nơi cô đã không về suốt ba năm."));
+        story.CoverUrl = "/samples/tau-dem.jpg";
+        db.Stories.Add(story);
+        await db.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Dữ liệu mẫu Sprint 2: gói đọc (PB18), truyện kết hợp có chương trả phí (PB16, PB17)
+    /// và tài khoản "vip" đã có gói còn hạn để test PB22 khi chưa làm thanh toán (Sprint 3).
+    /// </summary>
+    private static async Task SeedSprint2Async(AppDbContext db, IPasswordHasher<User> hasher)
+    {
+        var now = DateTime.UtcNow;
+
+        if (!await db.Packages.AnyAsync())
+        {
+            var detective = await db.Stories.FirstOrDefaultAsync(s => s.Title == "Vụ Án Phòng Số 7");
+            db.Packages.Add(new Package { Name = "Gói Tháng", Price = 49000, DurationDays = 30, Scope = PackageScope.All });
+            db.Packages.Add(new Package { Name = "Gói Quý", Price = 129000, DurationDays = 90, Scope = PackageScope.All });
+            if (detective is not null)
+            {
+                db.Packages.Add(new Package
+                {
+                    Name = "Gói Trinh Thám",
+                    Price = 29000,
+                    DurationDays = 30,
+                    Scope = PackageScope.Selected,
+                    PackageStories = [new PackageStory { StoryId = detective.Id }]
+                });
+            }
+            await db.SaveChangesAsync();
+        }
+
+        const string paidTitle = "Người Gác Đèn Cuối Cùng";
+        if (!await db.Stories.AnyAsync(s => s.Title == paidTitle))
+        {
+            var genreId = await db.Genres.Where(g => g.Name == "Huyền huyễn").Select(g => g.Id).FirstOrDefaultAsync();
+            var story = NewStory(
+                paidTitle, "Nhóm 3 HUFLIT", StoryStatus.Ongoing,
+                "Trên hòn đảo nhỏ giữa biển, người gác đèn già phát hiện ngọn hải đăng có thể soi thấy những con tàu đến từ quá khứ.",
+                genreId > 0 ? new[] { genreId } : Array.Empty<int>(), now.AddDays(-7), now.AddHours(-3),
+                ("Ngọn đèn không tắt", "Ông Tư đã gác ngọn hải đăng này bốn mươi năm. Đêm nay, ánh đèn bỗng chuyển sang màu xanh lam, và trên mặt biển hiện ra một con tàu buồm cũ kỹ."),
+                ("Con tàu không có thủy thủ", "Con tàu trôi sát vào bờ đá nhưng không hề va chạm. Trên boong không có ai, chỉ có một cuốn nhật ký hàng hải mở sẵn ở trang cuối."),
+                ("Trang nhật ký cuối", "Dòng chữ cuối cùng trong nhật ký ghi ngày tháng của năm mươi năm trước, và tên người viết chính là cha của ông Tư."),
+                ("Lời nhắn từ quá khứ", "Ông Tư run run lật lại từng trang. Giữa cuốn sổ kẹp một tấm bản đồ đánh dấu một hòn đảo không có trên bất kỳ hải đồ nào."));
+            story.AccessType = AccessType.Mixed;
+            story.Price = 39000;
+            story.FreeChapterCount = 2; // 2 chương đầu miễn phí, chương 3-4 trả phí
+            db.Stories.Add(story);
+            await db.SaveChangesAsync();
+        }
+
+        if (!await db.Users.AnyAsync(u => u.Username == "vip"))
+        {
+            var monthly = await db.Packages.FirstAsync(p => p.Name == "Gói Tháng");
+            var vip = new User { Username = "vip", Email = "vip@doctruyen.local", DisplayName = "Độc giả VIP" };
+            vip.PasswordHash = hasher.HashPassword(vip, "123456");
+            db.Users.Add(vip);
+
+            var transaction = new Transaction
+            {
+                User = vip,
+                Type = TransactionType.Package,
+                PackageId = monthly.Id,
+                Amount = monthly.Price,
+                Status = TransactionStatus.Success,
+                PaidAt = now
+            };
+            db.Transactions.Add(transaction);
+            db.UserPackages.Add(new UserPackage
+            {
+                User = vip,
+                PackageId = monthly.Id,
+                Transaction = transaction,
+                StartAt = now,
+                EndAt = now.AddDays(monthly.DurationDays)
+            });
+            await db.SaveChangesAsync();
+        }
     }
 
     private static Story NewStory(
