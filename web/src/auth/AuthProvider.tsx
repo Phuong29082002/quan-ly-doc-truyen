@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import { authApi } from "../api/auth";
 import type { AuthResponse, RegisterData, User } from "../api/types";
 import { AuthContext, type AuthContextValue } from "./context";
-import { clearAuth, loadUser, saveAuth } from "./storage";
+import { clearAuth, loadUser, saveAuth, saveUser } from "./storage";
 
 export default function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(loadUser);
@@ -18,6 +18,11 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  const updateUser = useCallback((u: User) => {
+    saveUser(u);
+    setUser(u);
+  }, []);
+
   // API trả 401 khi token hết hạn -> tự đăng xuất
   useEffect(() => {
     window.addEventListener("auth:expired", logout);
@@ -31,8 +36,9 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
       login: async (login: string, password: string) => handleAuth(await authApi.login(login, password)),
       register: async (data: RegisterData) => handleAuth(await authApi.register(data)),
       logout,
+      updateUser,
     }),
-    [user, handleAuth, logout],
+    [user, handleAuth, logout, updateUser],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

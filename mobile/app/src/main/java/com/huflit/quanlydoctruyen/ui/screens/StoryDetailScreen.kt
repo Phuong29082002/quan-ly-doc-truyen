@@ -38,7 +38,7 @@ import com.huflit.quanlydoctruyen.data.UiState
 import com.huflit.quanlydoctruyen.data.formatVnd
 import com.huflit.quanlydoctruyen.data.load
 import com.huflit.quanlydoctruyen.ui.components.Badge
-import com.huflit.quanlydoctruyen.ui.components.CoverPlaceholder
+import com.huflit.quanlydoctruyen.ui.components.CoverImage
 import com.huflit.quanlydoctruyen.ui.components.ErrorBox
 import com.huflit.quanlydoctruyen.ui.components.LoadingBox
 import com.huflit.quanlydoctruyen.ui.components.StatusBadge
@@ -82,7 +82,7 @@ private fun StoryDetailContent(story: StoryDetail, onRead: (Int) -> Unit, modifi
     LazyColumn(modifier.fillMaxSize()) {
         item {
             Row(Modifier.padding(16.dp)) {
-                CoverPlaceholder(story.title, Modifier.width(110.dp).height(150.dp))
+                CoverImage(story.coverUrl, story.title, Modifier.width(110.dp).height(150.dp))
                 Spacer(Modifier.width(16.dp))
                 Column(Modifier.weight(1f)) {
                     Text(story.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)

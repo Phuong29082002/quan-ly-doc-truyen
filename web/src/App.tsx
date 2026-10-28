@@ -13,6 +13,7 @@ import AdminStoriesPage from "./pages/admin/AdminStoriesPage";
 import AdminStoryFormPage from "./pages/admin/AdminStoryFormPage";
 import AdminChapterFormPage from "./pages/admin/AdminChapterFormPage";
 import AdminPackagesPage from "./pages/admin/AdminPackagesPage";
+import ProfilePage from "./pages/ProfilePage";
 import NotFoundPage from "./pages/NotFoundPage";
 
 export default function App() {
@@ -26,6 +27,7 @@ export default function App() {
             <Route path="/truyen/:id/chuong/:number" element={<ReadChapterPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/tai-khoan" element={<ProfilePage />} />
 
             <Route path="/admin" element={<RequireAdmin><AdminPage /></RequireAdmin>}>
               <Route index element={<Navigate to="truyen" replace />} />

@@ -58,4 +58,5 @@ export const storyApi = {
 export const chapterApi = {
   get: (id: number) => api.get<ChapterAdmin>(`/api/chapters/${id}`).then((r) => r.data),
   update: (id: number, data: ChapterRequest) => api.put<ChapterAdmin>(`/api/chapters/${id}`, data).then((r) => r.data),
+  remove: (id: number) => api.delete(`/api/chapters/${id}`),
 };

@@ -55,6 +55,12 @@ object SessionManager {
         user = res.user
     }
 
+    /** PB04: cập nhật thông tin user sau khi sửa hồ sơ */
+    fun updateUser(updated: UserDto) {
+        prefs.edit().putString(KEY_USER, gson.toJson(updated)).apply()
+        user = updated
+    }
+
     fun logout() {
         prefs.edit().remove(KEY_TOKEN).remove(KEY_USER).remove(KEY_EXPIRES).apply()
         token = null

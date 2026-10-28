@@ -12,6 +12,7 @@ public interface IChapterService
     Task<ChapterAdminDto> GetForEditAsync(int id);
     Task<ChapterAdminDto> CreateAsync(int storyId, ChapterRequest req);
     Task<ChapterAdminDto> UpdateAsync(int id, ChapterRequest req);
+    Task DeleteAsync(int id);
 }
 
 public class ChapterService(AppDbContext db) : IChapterService
@@ -110,6 +111,26 @@ public class ChapterService(AppDbContext db) : IChapterService
         await db.SaveChangesAsync();
 
         return ToAdminDto(chapter);
+    }
+
+    // PB09: xóa chương (kèm dữ liệu phụ thuộc vì các khóa ngoại đều Restrict)
+    public async Task DeleteAsync(int id)
+    {
+        var chapter = await db.Chapters.Include(c => c.Story).FirstOrDefaultAsync(c => c.Id == id)
+            ?? throw new NotFoundException("Không tìm thấy chương");
+
+        await using var tx = await db.Database.BeginTransactionAsync();
+
+        await db.CommentReports.Where(r => r.Comment.ChapterId == id).ExecuteDeleteAsync();
+        await db.Comments.Where(c => c.ChapterId == id).ExecuteDeleteAsync();
+        await db.ReadingProgresses.Where(p => p.ChapterId == id).ExecuteDeleteAsync();
+        await db.ChapterViews.Where(v => v.ChapterId == id).ExecuteDeleteAsync();
+
+        chapter.Story.UpdatedAt = DateTime.UtcNow;
+        db.Chapters.Remove(chapter);
+        await db.SaveChangesAsync();
+
+        await tx.CommitAsync();
     }
 
     // 403 kèm code/price để Web biết hiển thị yêu cầu đăng nhập hay mua gói/mua truyện

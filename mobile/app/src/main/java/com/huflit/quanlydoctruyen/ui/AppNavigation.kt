@@ -8,6 +8,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.huflit.quanlydoctruyen.ui.screens.HomeScreen
 import com.huflit.quanlydoctruyen.ui.screens.LoginScreen
+import com.huflit.quanlydoctruyen.ui.screens.ProfileScreen
 import com.huflit.quanlydoctruyen.ui.screens.ReadChapterScreen
 import com.huflit.quanlydoctruyen.ui.screens.RegisterScreen
 import com.huflit.quanlydoctruyen.ui.screens.StoryDetailScreen
@@ -22,8 +23,13 @@ fun AppNavigation() {
         composable("home") {
             HomeScreen(
                 onOpenStory = { id -> nav.navigate("story/$id") },
-                onLogin = { nav.navigate("login") }
+                onLogin = { nav.navigate("login") },
+                onProfile = { nav.navigate("profile") }
             )
+        }
+
+        composable("profile") {
+            ProfileScreen(onBack = { nav.popBackStack() })
         }
 
         composable("story/{id}", arguments = listOf(navArgument("id") { type = NavType.IntType })) { entry ->

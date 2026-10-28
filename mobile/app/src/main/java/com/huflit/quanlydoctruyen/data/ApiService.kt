@@ -3,13 +3,17 @@ package com.huflit.quanlydoctruyen.data
 import android.os.Handler
 import android.os.Looper
 import com.google.gson.JsonParser
+import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import retrofit2.HttpException
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.Multipart
 import retrofit2.http.POST
+import retrofit2.http.Part
+import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
 import java.io.IOException
@@ -27,6 +31,17 @@ interface ApiService {
 
     @GET("api/auth/me")
     suspend fun me(): UserDto
+
+    // PB04
+    @PUT("api/auth/me")
+    suspend fun updateProfile(@Body body: UpdateProfileRequest): UserDto
+
+    @Multipart
+    @POST("api/auth/me/avatar")
+    suspend fun uploadAvatar(@Part file: MultipartBody.Part): UserDto
+
+    @PUT("api/auth/password")
+    suspend fun changePassword(@Body body: ChangePasswordRequest)
 
     // PB05
     @GET("api/genres")
@@ -58,7 +73,7 @@ interface ApiService {
 object ApiClient {
     // Điện thoại thật qua cáp USB: chạy `adb reverse tcp:5086 tcp:5086` rồi dùng localhost
     // Emulator: đổi thành "http://10.0.2.2:5086/"
-    private const val BASE_URL = "http://localhost:5086/"
+    const val BASE_URL = "http://localhost:5086/"
 
     private val http = OkHttpClient.Builder()
         .addInterceptor { chain ->
@@ -83,6 +98,13 @@ object ApiClient {
         .addConverterFactory(GsonConverterFactory.create())
         .build()
         .create(ApiService::class.java)
+}
+
+/** Ảnh bìa API trả về dạng "/uploads/covers/..." -> ghép thêm địa chỉ API */
+fun assetUrl(path: String?): String? = when {
+    path.isNullOrBlank() -> null
+    path.startsWith("http") -> path
+    else -> ApiClient.BASE_URL.trimEnd('/') + path
 }
 
 fun Throwable.httpCode(): Int? = (this as? HttpException)?.code()

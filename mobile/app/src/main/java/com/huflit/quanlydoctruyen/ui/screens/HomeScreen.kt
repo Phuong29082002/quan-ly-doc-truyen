@@ -46,10 +46,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.huflit.quanlydoctruyen.data.ApiClient
+import com.huflit.quanlydoctruyen.data.Genre
 import com.huflit.quanlydoctruyen.data.SessionManager
 import com.huflit.quanlydoctruyen.data.StoryListItem
 import com.huflit.quanlydoctruyen.data.toMessage
-import com.huflit.quanlydoctruyen.ui.components.CoverPlaceholder
+import com.huflit.quanlydoctruyen.ui.components.Avatar
+import com.huflit.quanlydoctruyen.ui.components.CoverImage
 import com.huflit.quanlydoctruyen.ui.components.ErrorBox
 import com.huflit.quanlydoctruyen.ui.components.StatusBadge
 import kotlinx.coroutines.launch
@@ -60,10 +62,13 @@ private val SORTS = listOf("updated" to "Mới cập nhật", "newest" to "Mới
 // PB11: tìm kiếm truyện, PB12: các danh sách gợi ý
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(onOpenStory: (Int) -> Unit, onLogin: () -> Unit) {
+fun HomeScreen(onOpenStory: (Int) -> Unit, onLogin: () -> Unit, onProfile: () -> Unit) {
     var input by rememberSaveable { mutableStateOf("") }
     var keyword by rememberSaveable { mutableStateOf("") }
     var sort by rememberSaveable { mutableStateOf("updated") }
+    var genreId by rememberSaveable { mutableStateOf<Int?>(null) }
+
+    val genres = remember { mutableStateListOf<Genre>() }
 
     val stories = remember { mutableStateListOf<StoryListItem>() }
     var page by remember { mutableIntStateOf(1) }
@@ -73,12 +78,25 @@ fun HomeScreen(onOpenStory: (Int) -> Unit, onLogin: () -> Unit) {
     var reloadKey by remember { mutableIntStateOf(0) }
     val scope = rememberCoroutineScope()
 
-    // Tải trang đầu mỗi khi đổi từ khóa / cách sắp xếp
-    LaunchedEffect(keyword, sort, reloadKey) {
+    // Danh sách thể loại để lọc
+    LaunchedEffect(reloadKey) {
+        try {
+            val all = ApiClient.api.genres()
+            genres.clear()
+            genres.addAll(all)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Không tải được thể loại thì chỉ ẩn bộ lọc, danh sách truyện vẫn dùng bình thường
+        }
+    }
+
+    // Tải trang đầu mỗi khi đổi từ khóa / cách sắp xếp / thể loại
+    LaunchedEffect(keyword, sort, genreId, reloadKey) {
         loading = true
         error = null
         try {
-            val res = ApiClient.api.searchStories(keyword = keyword.ifBlank { null }, sort = sort, page = 1)
+            val res = ApiClient.api.searchStories(keyword = keyword.ifBlank { null }, genreId = genreId, sort = sort, page = 1)
             stories.clear()
             stories.addAll(res.items)
             page = res.page
@@ -96,7 +114,7 @@ fun HomeScreen(onOpenStory: (Int) -> Unit, onLogin: () -> Unit) {
         scope.launch {
             loading = true
             try {
-                val res = ApiClient.api.searchStories(keyword = keyword.ifBlank { null }, sort = sort, page = page + 1)
+                val res = ApiClient.api.searchStories(keyword = keyword.ifBlank { null }, genreId = genreId, sort = sort, page = page + 1)
                 stories.addAll(res.items)
                 page = res.page
                 totalPages = res.totalPages
@@ -118,7 +136,8 @@ fun HomeScreen(onOpenStory: (Int) -> Unit, onLogin: () -> Unit) {
                 title = { Text("Đọc Truyện", fontWeight = FontWeight.Bold) },
                 actions = {
                     if (user != null) {
-                        Text(user.displayName, style = MaterialTheme.typography.bodyMedium)
+                        Avatar(user.avatarUrl, user.displayName, 28.dp)
+                        TextButton(onClick = onProfile) { Text(user.displayName) }
                         TextButton(onClick = { SessionManager.logout() }) { Text("Đăng xuất") }
                     } else {
                         TextButton(onClick = onLogin) { Text("Đăng nhập") }
@@ -145,6 +164,18 @@ fun HomeScreen(onOpenStory: (Int) -> Unit, onLogin: () -> Unit) {
             ) {
                 SORTS.forEach { (value, label) ->
                     FilterChip(selected = sort == value, onClick = { sort = value }, label = { Text(label) })
+                }
+            }
+
+            if (genres.isNotEmpty()) {
+                Row(
+                    Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilterChip(selected = genreId == null, onClick = { genreId = null }, label = { Text("Tất cả thể loại") })
+                    genres.forEach { g ->
+                        FilterChip(selected = genreId == g.id, onClick = { genreId = g.id }, label = { Text(g.name) })
+                    }
                 }
             }
 
@@ -187,7 +218,7 @@ fun HomeScreen(onOpenStory: (Int) -> Unit, onLogin: () -> Unit) {
 private fun StoryRow(story: StoryListItem, onClick: () -> Unit) {
     Card(Modifier.fillMaxWidth().clickable(onClick = onClick)) {
         Row(Modifier.padding(10.dp)) {
-            CoverPlaceholder(story.title, Modifier.width(64.dp).height(86.dp))
+            CoverImage(story.coverUrl, story.title, Modifier.width(64.dp).height(86.dp))
             Spacer(Modifier.size(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(story.title, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)

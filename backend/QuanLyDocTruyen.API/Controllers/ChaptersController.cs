@@ -5,7 +5,7 @@ using QuanLyDocTruyen.API.Services;
 
 namespace QuanLyDocTruyen.API.Controllers;
 
-// PB08, PB09: Admin xem và sửa chương
+// PB08, PB09: Admin xem, sửa và xóa chương
 [ApiController]
 [Route("api/chapters")]
 [Authorize(Roles = "Admin")]
@@ -17,4 +17,11 @@ public class ChaptersController(IChapterService chapters) : ControllerBase
     [HttpPut("{id:int}")]
     public async Task<ActionResult<ChapterAdminDto>> Update(int id, ChapterRequest req)
         => Ok(await chapters.UpdateAsync(id, req));
+
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        await chapters.DeleteAsync(id);
+        return NoContent();
+    }
 }

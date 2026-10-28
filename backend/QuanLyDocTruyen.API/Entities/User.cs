@@ -7,6 +7,7 @@ public class User
     public string Email { get; set; } = "";
     public string PasswordHash { get; set; } = "";
     public string DisplayName { get; set; } = "";
+    public string? AvatarUrl { get; set; }
     public UserRole Role { get; set; } = UserRole.Member;
     public UserStatus Status { get; set; } = UserStatus.Active;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

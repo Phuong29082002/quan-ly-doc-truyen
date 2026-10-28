@@ -17,13 +17,20 @@ public interface IAuthService
     Task<AuthResponse> RegisterAsync(RegisterRequest req);
     Task<AuthResponse> LoginAsync(LoginRequest req);
     Task<UserDto> GetMeAsync(int userId);
+    Task<UserDto> UpdateProfileAsync(int userId, UpdateProfileRequest req);
+    Task<UserDto> UploadAvatarAsync(int userId, IFormFile file);
+    Task ChangePasswordAsync(int userId, ChangePasswordRequest req);
 }
 
 public class AuthService(
     AppDbContext db,
     IPasswordHasher<User> hasher,
-    IOptions<JwtOptions> options) : IAuthService
+    IOptions<JwtOptions> options,
+    IWebHostEnvironment env) : IAuthService
 {
+    private static readonly string[] AllowedImageExtensions = [".jpg", ".jpeg", ".png", ".webp"];
+    private const long MaxAvatarSize = 2 * 1024 * 1024; // 2MB
+
     private readonly JwtOptions _jwt = options.Value;
 
     public async Task<AuthResponse> RegisterAsync(RegisterRequest req)
@@ -74,6 +81,72 @@ public class AuthService(
         return ToDto(user);
     }
 
+    // PB04: cập nhật tên hiển thị
+    public async Task<UserDto> UpdateProfileAsync(int userId, UpdateProfileRequest req)
+    {
+        var user = await db.Users.FindAsync(userId)
+            ?? throw new NotFoundException("Không tìm thấy tài khoản");
+
+        user.DisplayName = req.DisplayName.Trim();
+        await db.SaveChangesAsync();
+        return ToDto(user);
+    }
+
+    // PB04: ảnh đại diện (multipart/form-data, field "file")
+    public async Task<UserDto> UploadAvatarAsync(int userId, IFormFile file)
+    {
+        var user = await db.Users.FindAsync(userId)
+            ?? throw new NotFoundException("Không tìm thấy tài khoản");
+
+        if (file is null || file.Length == 0)
+            throw new BadRequestException("Vui lòng chọn ảnh đại diện");
+        if (file.Length > MaxAvatarSize)
+            throw new BadRequestException("Ảnh đại diện tối đa 2MB");
+
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (!AllowedImageExtensions.Contains(ext))
+            throw new BadRequestException("Chỉ chấp nhận ảnh .jpg, .jpeg, .png, .webp");
+
+        var webRoot = env.WebRootPath ?? Path.Combine(env.ContentRootPath, "wwwroot");
+        var folder = Path.Combine(webRoot, "uploads", "avatars");
+        Directory.CreateDirectory(folder);
+
+        var fileName = $"{Guid.NewGuid():N}{ext}";
+        await using (var stream = System.IO.File.Create(Path.Combine(folder, fileName)))
+        {
+            await file.CopyToAsync(stream);
+        }
+
+        // Xóa ảnh cũ nếu có
+        if (user.AvatarUrl is not null && user.AvatarUrl.StartsWith("/uploads/avatars/"))
+        {
+            var oldPath = Path.Combine(folder, Path.GetFileName(user.AvatarUrl));
+            if (System.IO.File.Exists(oldPath))
+                System.IO.File.Delete(oldPath);
+        }
+
+        user.AvatarUrl = $"/uploads/avatars/{fileName}";
+        await db.SaveChangesAsync();
+        return ToDto(user);
+    }
+
+    // PB04: đổi mật khẩu, bắt buộc nhập đúng mật khẩu cũ.
+    // Sai mật khẩu cũ trả 400 (không phải 401) vì client tự đăng xuất khi nhận 401.
+    public async Task ChangePasswordAsync(int userId, ChangePasswordRequest req)
+    {
+        var user = await db.Users.FindAsync(userId)
+            ?? throw new NotFoundException("Không tìm thấy tài khoản");
+
+        if (hasher.VerifyHashedPassword(user, user.PasswordHash, req.CurrentPassword) == PasswordVerificationResult.Failed)
+            throw new BadRequestException("Mật khẩu hiện tại không đúng");
+
+        if (req.NewPassword == req.CurrentPassword)
+            throw new BadRequestException("Mật khẩu mới phải khác mật khẩu hiện tại");
+
+        user.PasswordHash = hasher.HashPassword(user, req.NewPassword);
+        await db.SaveChangesAsync();
+    }
+
     private AuthResponse CreateAuthResponse(User user)
     {
         var expires = DateTime.UtcNow.AddMinutes(_jwt.ExpireMinutes);
@@ -99,5 +172,5 @@ public class AuthService(
     }
 
     private static UserDto ToDto(User u) =>
-        new(u.Id, u.Username, u.Email, u.DisplayName, u.Role.ToString());
+        new(u.Id, u.Username, u.Email, u.DisplayName, u.Role.ToString(), u.AvatarUrl);
 }

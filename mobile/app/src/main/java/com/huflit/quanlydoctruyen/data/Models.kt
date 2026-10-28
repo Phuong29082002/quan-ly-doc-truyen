@@ -12,7 +12,8 @@ data class UserDto(
     val username: String,
     val email: String,
     val displayName: String,
-    val role: String
+    val role: String,
+    val avatarUrl: String? = null
 )
 
 data class AuthResponse(val token: String, val expiresAt: String, val user: UserDto)
@@ -25,6 +26,11 @@ data class RegisterRequest(
     val password: String,
     val displayName: String?
 )
+
+// PB04: hồ sơ và đổi mật khẩu
+data class UpdateProfileRequest(val displayName: String)
+
+data class ChangePasswordRequest(val currentPassword: String, val newPassword: String)
 
 data class GenreRef(val id: Int, val name: String)
 

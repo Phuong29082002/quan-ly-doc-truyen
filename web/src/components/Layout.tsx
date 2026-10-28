@@ -1,4 +1,5 @@
 import { NavLink, Outlet, useNavigate } from "react-router";
+import { assetUrl } from "../api/client";
 import { useAuth } from "../auth/useAuth";
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
@@ -27,10 +28,17 @@ export default function Layout() {
           <div className="ml-auto flex items-center gap-3 text-sm">
             {user ? (
               <>
-                <span className="text-gray-700">
-                  Xin chào, <span className="font-semibold">{user.displayName}</span>
-                  {isAdmin && <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-700">Admin</span>}
-                </span>
+                <NavLink to="/tai-khoan" className="flex items-center gap-2 text-gray-700 hover:text-blue-600">
+                  {user.avatarUrl ? (
+                    <img src={assetUrl(user.avatarUrl)!} alt="" className="h-7 w-7 rounded-full object-cover" />
+                  ) : (
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold text-blue-700">
+                      {user.displayName.charAt(0).toUpperCase()}
+                    </span>
+                  )}
+                  <span className="font-semibold">{user.displayName}</span>
+                  {isAdmin && <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-700">Admin</span>}
+                </NavLink>
                 <button onClick={handleLogout} className="px-3 py-1.5 rounded border border-gray-300 hover:bg-gray-100">
                   Đăng xuất
                 </button>
