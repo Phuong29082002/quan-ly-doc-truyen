@@ -93,6 +93,22 @@ namespace QuanLyDocTruyen.API.Migrations
                     b.ToTable("ChapterViews");
                 });
 
+            modelBuilder.Entity("QuanLyDocTruyen.API.Entities.UserAvatar", b =>
+                {
+                    b.HasOne("QuanLyDocTruyen.API.Entities.User", "User")
+                        .WithOne("Avatar")
+                        .HasForeignKey("QuanLyDocTruyen.API.Entities.UserAvatar", "UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("QuanLyDocTruyen.API.Entities.User", b =>
+                {
+                    b.Navigation("Avatar");
+                });
+
             modelBuilder.Entity("QuanLyDocTruyen.API.Entities.Comment", b =>
                 {
                     b.Property<int>("Id")
@@ -473,6 +489,9 @@ namespace QuanLyDocTruyen.API.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("AvatarUrl")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -511,6 +530,25 @@ namespace QuanLyDocTruyen.API.Migrations
                         .IsUnique();
 
                     b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("QuanLyDocTruyen.API.Entities.UserAvatar", b =>
+                {
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<byte[]>("ImageData")
+                        .IsRequired()
+                        .HasColumnType("varbinary(max)");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("UserAvatars");
                 });
 
             modelBuilder.Entity("QuanLyDocTruyen.API.Entities.UserPackage", b =>

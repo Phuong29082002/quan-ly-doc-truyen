@@ -13,6 +13,12 @@ export const authApi = {
   // PB04
   updateProfile: (displayName: string) => api.put<User>("/api/auth/me", { displayName }).then((r) => r.data),
 
+  uploadAvatar: (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return api.post<User>("/api/auth/me/avatar", form).then((r) => r.data);
+  },
+
   changePassword: (currentPassword: string, newPassword: string) =>
     api.post("/api/auth/change-password", { currentPassword, newPassword }),
 };

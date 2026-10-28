@@ -484,5 +484,7 @@ $RECYCLE.BIN/
 # Ảnh bìa upload khi chạy thử (không đưa lên GitHub)
 backend/QuanLyDocTruyen.API/wwwroot/uploads/covers/*
 !backend/QuanLyDocTruyen.API/wwwroot/uploads/covers/.gitkeep
+# Avatar uploads are stored in SQL Server; ignore any legacy local copies.
+backend/QuanLyDocTruyen.API/wwwroot/uploads/avatars/*
 # Ảnh minh họa chương upload khi chạy thử (PB43)
 backend/QuanLyDocTruyen.API/wwwroot/uploads/chapters/*

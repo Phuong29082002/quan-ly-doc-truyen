@@ -18,6 +18,8 @@ public interface IAuthService
     Task<AuthResponse> LoginAsync(LoginRequest req);
     Task<UserDto> GetMeAsync(int userId);
     Task<UserDto> UpdateProfileAsync(int userId, UpdateProfileRequest req);
+    Task<UserDto> UpdateAvatarAsync(int userId, IFormFile? file);
+    Task<UserAvatar?> GetAvatarAsync(int userId);
     Task ChangePasswordAsync(int userId, ChangePasswordRequest req);
 }
 
@@ -27,6 +29,7 @@ public class AuthService(
     IOptions<JwtOptions> options) : IAuthService
 {
     private readonly JwtOptions _jwt = options.Value;
+    private static readonly HashSet<string> AllowedAvatarTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
     public async Task<AuthResponse> RegisterAsync(RegisterRequest req)
     {
@@ -85,6 +88,36 @@ public class AuthService(
         return ToDto(user);
     }
 
+    public async Task<UserDto> UpdateAvatarAsync(int userId, IFormFile? file)
+    {
+        var user = await db.Users.FindAsync(userId) ?? throw new NotFoundException("Không tìm thấy tài khoản");
+        if (file is null || file.Length == 0)
+            throw new BadRequestException("Vui lòng chọn ảnh");
+        if (file.Length > 2 * 1024 * 1024)
+            throw new BadRequestException("Ảnh tối đa 2MB");
+        if (!AllowedAvatarTypes.Contains(file.ContentType.ToLowerInvariant()))
+            throw new BadRequestException("Chỉ hỗ trợ JPG, PNG, WEBP hoặc GIF");
+
+        await using var stream = new MemoryStream();
+        await file.CopyToAsync(stream);
+        var imageData = stream.ToArray();
+
+        var avatar = await db.UserAvatars.FindAsync(userId);
+        if (avatar is null)
+        {
+            avatar = new UserAvatar { UserId = userId, User = user };
+            db.UserAvatars.Add(avatar);
+        }
+        avatar.ImageData = imageData;
+        avatar.ContentType = file.ContentType.ToLowerInvariant();
+        user.AvatarUrl = $"/api/auth/users/{userId}/avatar";
+        await db.SaveChangesAsync();
+        return ToDto(user);
+    }
+
+    public Task<UserAvatar?> GetAvatarAsync(int userId) =>
+        db.UserAvatars.AsNoTracking().FirstOrDefaultAsync(x => x.UserId == userId);
+
     // PB04: đổi mật khẩu (phải nhập đúng mật khẩu cũ)
     public async Task ChangePasswordAsync(int userId, ChangePasswordRequest req)
     {
@@ -124,5 +157,5 @@ public class AuthService(
     }
 
     private static UserDto ToDto(User u) =>
-        new(u.Id, u.Username, u.Email, u.DisplayName, u.Role.ToString());
+        new(u.Id, u.Username, u.Email, u.DisplayName, u.Role.ToString(), u.AvatarUrl);
 }

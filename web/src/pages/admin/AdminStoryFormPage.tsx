@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router";
-import { genreApi, storyApi } from "../../api/catalog";
+import { chapterApi, genreApi, storyApi } from "../../api/catalog";
 import { getErrorMessage } from "../../api/client";
 import type { AccessType, Genre, StoryDetail, StoryRequest, StoryStatus } from "../../api/types";
 import Alert from "../../components/Alert";
@@ -40,7 +40,7 @@ export default function AdminStoryFormPage() {
       {story && (
         <>
           <CoverUpload key={story.coverUrl ?? "none"} story={story} onUploaded={() => setReload((r) => r + 1)} />
-          <ChapterTable story={story} />
+          <ChapterTable story={story} onChanged={() => setReload((r) => r + 1)} />
         </>
       )}
     </div>
@@ -224,7 +224,24 @@ function CoverUpload({ story, onUploaded }: { story: StoryDetail; onUploaded: ()
   );
 }
 
-function ChapterTable({ story }: { story: StoryDetail }) {
+function ChapterTable({ story, onChanged }: { story: StoryDetail; onChanged: () => void }) {
+  const [error, setError] = useState("");
+  const [deleting, setDeleting] = useState<number | null>(null);
+
+  async function removeChapter(id: number, number: number) {
+    if (!window.confirm(`Xóa chương ${number}? Thao tác này không thể hoàn tác.`)) return;
+    setError("");
+    setDeleting(id);
+    try {
+      await chapterApi.remove(id);
+      onChanged();
+    } catch (err) {
+      setError(getErrorMessage(err, "Xóa chương thất bại"));
+    } finally {
+      setDeleting(null);
+    }
+  }
+
   return (
     <div className="mt-6 rounded-lg border bg-white p-5">
       <div className="mb-3 flex items-center justify-between">
@@ -233,6 +250,7 @@ function ChapterTable({ story }: { story: StoryDetail }) {
           + Thêm chương
         </Link>
       </div>
+      {error && <Alert>{error}</Alert>}
       {story.chapters.length === 0 ? (
         <p className="text-sm text-gray-500">Chưa có chương nào</p>
       ) : (
@@ -260,7 +278,12 @@ function ChapterTable({ story }: { story: StoryDetail }) {
                   )}
                 </td>
                 <td className="py-2 text-right">
-                  <Link to={`/admin/chuong/${c.id}`} className="text-blue-600 hover:underline">Sửa</Link>
+                  <div className="flex justify-end gap-3">
+                    <Link to={`/admin/chuong/${c.id}`} className="text-blue-600 hover:underline">Sửa</Link>
+                    <button disabled={deleting !== null} onClick={() => void removeChapter(c.id, c.number)} className="text-red-600 hover:underline disabled:opacity-50">
+                      {deleting === c.id ? "Đang xóa..." : "Xóa"}
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

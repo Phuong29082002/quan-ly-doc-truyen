@@ -6,6 +6,7 @@ namespace QuanLyDocTruyen.API.Data;
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
     public DbSet<User> Users => Set<User>();
+    public DbSet<UserAvatar> UserAvatars => Set<UserAvatar>();
     public DbSet<Genre> Genres => Set<Genre>();
     public DbSet<Story> Stories => Set<Story>();
     public DbSet<StoryGenre> StoryGenres => Set<StoryGenre>();
@@ -37,6 +38,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
         m.Entity<User>().HasIndex(x => x.Username).IsUnique();
         m.Entity<User>().HasIndex(x => x.Email).IsUnique();
+        m.Entity<UserAvatar>().HasKey(x => x.UserId);
+        m.Entity<UserAvatar>().Property(x => x.ContentType).HasMaxLength(100);
+        m.Entity<UserAvatar>().HasOne(x => x.User).WithOne(x => x.Avatar).HasForeignKey<UserAvatar>(x => x.UserId);
         m.Entity<Genre>().HasIndex(x => x.Name).IsUnique();
         m.Entity<Chapter>().HasIndex(x => new { x.StoryId, x.Number }).IsUnique();
         m.Entity<ChapterView>().HasIndex(x => x.ViewedAt);

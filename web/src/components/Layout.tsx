@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useNavigate } from "react-router";
 import { useAuth } from "../auth/useAuth";
+import { assetUrl } from "../api/client";
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
   isActive ? "font-semibold text-blue-600" : "text-gray-600 hover:text-blue-600";
@@ -28,9 +29,17 @@ export default function Layout() {
           <div className="ml-auto flex items-center gap-3 text-sm">
             {user ? (
               <>
-                <NavLink to="/tai-khoan" className="text-gray-700 hover:text-blue-600" title="Tài khoản của tôi">
-                  Xin chào, <span className="font-semibold">{user.displayName}</span>
-                  {isAdmin && <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-700">Admin</span>}
+                <NavLink to="/tai-khoan" className="flex items-center gap-2 text-gray-700 hover:text-blue-600" title="Tài khoản của tôi">
+                  <span>Xin chào, <span className="font-semibold">{user.displayName}</span>
+                    {isAdmin && <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-700">Admin</span>}
+                  </span>
+                  {user.avatarUrl ? (
+                    <img src={assetUrl(user.avatarUrl) ?? ""} alt="" className="h-8 w-8 rounded-full object-cover" />
+                  ) : (
+                    <span className="grid h-8 w-8 place-items-center rounded-full bg-gray-100 font-semibold text-gray-600">
+                      {user.displayName.slice(0, 1).toUpperCase()}
+                    </span>
+                  )}
                 </NavLink>
                 <button onClick={handleLogout} className="px-3 py-1.5 rounded border border-gray-300 hover:bg-gray-100">
                   Đăng xuất

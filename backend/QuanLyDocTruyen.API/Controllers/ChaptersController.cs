@@ -18,6 +18,13 @@ public class ChaptersController(IChapterService chapters, IImageUploadService im
     public async Task<ActionResult<ChapterAdminDto>> Update(int id, ChapterRequest req)
         => Ok(await chapters.UpdateAsync(id, req));
 
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        await chapters.DeleteAsync(id);
+        return NoContent();
+    }
+
     // PB43: upload ảnh minh họa (multipart/form-data, field "file").
     // Trả về đường dẫn để chèn vào nội dung chương theo cú pháp ![mô tả](đường dẫn)
     [HttpPost("images")]
