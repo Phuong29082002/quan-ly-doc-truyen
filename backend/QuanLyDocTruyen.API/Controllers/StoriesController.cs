@@ -18,7 +18,10 @@ public class StoriesController(IStoryService stories, IChapterService chapters) 
     // PB13: chi tiết truyện. Admin thấy cả chương hẹn giờ chưa phát hành
     [HttpGet("{id:int}")]
     public async Task<ActionResult<StoryDetailDto>> Detail(int id)
-        => Ok(await stories.GetDetailAsync(id, includeUnpublished: User.IsInRole("Admin")));
+    {
+        var isAdmin = User.IsInRole("Admin");
+        return Ok(await stories.GetDetailAsync(id, isAdmin, User.GetUserId(), isAdmin));
+    }
 
     // PB06
     [Authorize(Roles = "Admin")]

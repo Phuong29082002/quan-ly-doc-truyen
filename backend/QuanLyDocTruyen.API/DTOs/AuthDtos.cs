@@ -34,7 +34,8 @@ public record UserDto(int Id, string Username, string Email, string DisplayName,
 
 public record AuthResponse(string Token, DateTime ExpiresAt, UserDto User);
 
-// PB04: hồ sơ và đổi mật khẩu
+// ---------- Hồ sơ cá nhân (PB04) ----------
+
 public class UpdateProfileRequest
 {
     [Required(ErrorMessage = "Vui lòng nhập tên hiển thị")]

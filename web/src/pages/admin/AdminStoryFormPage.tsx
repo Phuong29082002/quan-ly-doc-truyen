@@ -40,7 +40,7 @@ export default function AdminStoryFormPage() {
       {story && (
         <>
           <CoverUpload key={story.coverUrl ?? "none"} story={story} onUploaded={() => setReload((r) => r + 1)} />
-          <ChapterTable story={story} onDeleted={() => setReload((r) => r + 1)} />
+          <ChapterTable story={story} onChanged={() => setReload((r) => r + 1)} />
         </>
       )}
     </div>
@@ -224,19 +224,18 @@ function CoverUpload({ story, onUploaded }: { story: StoryDetail; onUploaded: ()
   );
 }
 
-function ChapterTable({ story, onDeleted }: { story: StoryDetail; onDeleted: () => void }) {
-  const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
+function ChapterTable({ story, onChanged }: { story: StoryDetail; onChanged: () => void }) {
+  const [error, setError] = useState<string | null>(null);
 
   // PB09: xóa chương
   async function handleDelete(c: StoryDetail["chapters"][number]) {
     if (!window.confirm(`Xóa chương ${c.number}: ${c.title}? Thao tác này không thể hoàn tác.`)) return;
-    setMessage(null);
+    setError(null);
     try {
       await chapterApi.remove(c.id);
-      setMessage({ type: "success", text: `Đã xóa chương ${c.number}` });
-      onDeleted();
+      onChanged();
     } catch (err) {
-      setMessage({ type: "error", text: getErrorMessage(err, "Xóa chương thất bại") });
+      setError(getErrorMessage(err, "Xóa chương thất bại"));
     }
   }
 
@@ -248,7 +247,7 @@ function ChapterTable({ story, onDeleted }: { story: StoryDetail; onDeleted: () 
           + Thêm chương
         </Link>
       </div>
-      {message && <Alert type={message.type}>{message.text}</Alert>}
+      {error && <Alert>{error}</Alert>}
       {story.chapters.length === 0 ? (
         <p className="text-sm text-gray-500">Chưa có chương nào</p>
       ) : (
@@ -275,9 +274,9 @@ function ChapterTable({ story, onDeleted }: { story: StoryDetail; onDeleted: () 
                     <span className="text-purple-700">Hẹn giờ {formatDateTime(c.publishAt)}</span>
                   )}
                 </td>
-                <td className="py-2 text-right whitespace-nowrap">
-                  <Link to={`/admin/chuong/${c.id}`} className="mr-3 text-blue-600 hover:underline">Sửa</Link>
-                  <button onClick={() => handleDelete(c)} className="text-red-600 hover:underline">Xóa</button>
+                <td className="py-2 text-right">
+                  <Link to={`/admin/chuong/${c.id}`} className="text-blue-600 hover:underline">Sửa</Link>
+                  <button onClick={() => handleDelete(c)} className="ml-3 text-red-600 hover:underline">Xóa</button>
                 </td>
               </tr>
             ))}

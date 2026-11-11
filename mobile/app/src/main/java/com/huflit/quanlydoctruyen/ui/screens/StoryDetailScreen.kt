@@ -33,6 +33,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.huflit.quanlydoctruyen.data.ApiClient
 import com.huflit.quanlydoctruyen.data.PackageItem
+import com.huflit.quanlydoctruyen.data.SessionManager
 import com.huflit.quanlydoctruyen.data.StoryDetail
 import com.huflit.quanlydoctruyen.data.UiState
 import com.huflit.quanlydoctruyen.data.formatVnd
@@ -48,7 +49,8 @@ import com.huflit.quanlydoctruyen.ui.components.StatusBadge
 @Composable
 fun StoryDetailScreen(storyId: Int, onRead: (Int) -> Unit, onBack: () -> Unit) {
     var retry by remember { mutableIntStateOf(0) }
-    val state by produceState<UiState<StoryDetail>>(UiState.Loading, storyId, retry) {
+    // Tải lại khi đăng nhập/đăng xuất để cập nhật nhãn "Đã mở khóa"
+    val state by produceState<UiState<StoryDetail>>(UiState.Loading, storyId, retry, SessionManager.user?.id) {
         value = UiState.Loading
         value = load { ApiClient.api.storyDetail(storyId) }
     }
@@ -109,7 +111,17 @@ private fun StoryDetailContent(story: StoryDetail, onRead: (Int) -> Unit, modifi
                 if (!story.description.isNullOrBlank()) {
                     Text(story.description, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 12.dp))
                 }
-                if (story.accessType != "Free" && applicable.isNotEmpty()) {
+                // PB22: người đọc đã có quyền đọc toàn bộ truyện
+                if (story.accessType != "Free" && story.hasFullAccess) {
+                    Text(
+                        if (story.accessSource == "Purchase") "✓ Bạn đã mua truyện này, đọc được tất cả các chương"
+                        else "✓ Gói đọc của bạn còn hạn, đọc được tất cả các chương",
+                        color = Color(0xFF1D4ED8),
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                }
+                if (story.accessType != "Free" && !story.hasFullAccess && applicable.isNotEmpty()) {
                     Text(
                         "Gói đọc áp dụng",
                         style = MaterialTheme.typography.titleMedium,
@@ -148,8 +160,11 @@ private fun StoryDetailContent(story: StoryDetail, onRead: (Int) -> Unit, modifi
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text("Chương ${c.number}: ${c.title}", Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                if (c.isFree) Badge("Miễn phí", Color(0xFFDCFCE7), Color(0xFF15803D))
-                else Badge("Trả phí", Color(0xFFFFEDD5), Color(0xFFC2410C))
+                when {
+                    c.isFree -> Badge("Miễn phí", Color(0xFFDCFCE7), Color(0xFF15803D))
+                    c.canRead -> Badge("Đã mở khóa", Color(0xFFDBEAFE), Color(0xFF1D4ED8))
+                    else -> Badge("🔒 Trả phí", Color(0xFFFFEDD5), Color(0xFFC2410C))
+                }
             }
             HorizontalDivider(Modifier.padding(horizontal = 16.dp))
         }

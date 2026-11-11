@@ -11,9 +11,9 @@ export const authApi = {
   me: () => api.get<User>("/api/auth/me").then((r) => r.data),
 
   // PB04
-  updateProfile: (displayName: string) =>
-    api.put<User>("/api/auth/me", { displayName }).then((r) => r.data),
+  updateProfile: (displayName: string) => api.put<User>("/api/auth/me", { displayName }).then((r) => r.data),
 
+  // PB04: ảnh đại diện
   uploadAvatar: (file: File) => {
     const form = new FormData();
     form.append("file", file);
@@ -21,5 +21,5 @@ export const authApi = {
   },
 
   changePassword: (currentPassword: string, newPassword: string) =>
-    api.put("/api/auth/password", { currentPassword, newPassword }),
+    api.post("/api/auth/change-password", { currentPassword, newPassword }),
 };

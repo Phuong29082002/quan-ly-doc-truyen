@@ -5,25 +5,29 @@ import { getErrorMessage } from "../api/client";
 import type { StoryDetail } from "../api/types";
 import CoverImage from "../components/CoverImage";
 import StatusBadge from "../components/StatusBadge";
-import { formatDate, formatDateTime, formatNumber } from "../utils/format";
+import AccessBadge from "../components/AccessBadge";
+import { useAuth } from "../auth/useAuth";
+import { formatDate, formatDateTime, formatNumber, formatPrice } from "../utils/format";
 
 // PB13: thông tin truyện + danh sách chương kèm trạng thái truy cập
 export default function StoryDetailPage() {
   const id = Number(useParams().id);
-  const [state, setState] = useState<{ id: number; data?: StoryDetail; error?: string }>();
+  const { user } = useAuth();
+  const key = `${id}-${user?.id ?? 0}`;
+  const [state, setState] = useState<{ key: string; data?: StoryDetail; error?: string }>();
 
   useEffect(() => {
     let ignore = false;
     storyApi
       .detail(id)
-      .then((data) => !ignore && setState({ id, data }))
-      .catch((err) => !ignore && setState({ id, error: getErrorMessage(err, "Không tải được truyện") }));
+      .then((data) => !ignore && setState({ key, data }))
+      .catch((err) => !ignore && setState({ key, error: getErrorMessage(err, "Không tải được truyện") }));
     return () => {
       ignore = true;
     };
-  }, [id]);
+  }, [key, id]);
 
-  if (state?.id !== id) return <p className="py-12 text-center text-gray-500">Đang tải...</p>;
+  if (state?.key !== key) return <p className="py-12 text-center text-gray-500">Đang tải...</p>;
   if (state.error || !state.data) return <p className="py-12 text-center text-red-600">{state.error}</p>;
 
   const story = state.data;
@@ -49,6 +53,8 @@ export default function StoryDetailPage() {
                 </Link>
               ))}
             </dd>
+            <dt className="text-gray-500">Hình thức</dt>
+            <dd><AccessBadge accessType={story.accessType} price={story.price} freeChapterCount={story.freeChapterCount} /></dd>
             <dt className="text-gray-500">Tình trạng</dt>
             <dd><StatusBadge status={story.status} /></dd>
             <dt className="text-gray-500">Số chương</dt>
@@ -74,6 +80,8 @@ export default function StoryDetailPage() {
             )}
           </div>
 
+          <AccessNotice story={story} loggedIn={!!user} />
+
           {story.description && <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-gray-700">{story.description}</p>}
         </div>
       </div>
@@ -98,16 +106,45 @@ export default function StoryDetailPage() {
                     Hẹn giờ {formatDateTime(c.publishAt)}
                   </span>
                 )}
-                {c.isPublished && (
-                  <span className={`shrink-0 rounded px-1.5 py-0.5 text-xs ${c.isFree ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-700"}`}>
-                    {c.isFree ? "Miễn phí" : "Trả phí"}
-                  </span>
-                )}
+                {c.isPublished && <ChapterBadge isFree={c.isFree} canRead={c.canRead} />}
               </li>
             ))}
           </ul>
         )}
       </div>
+    </div>
+  );
+}
+
+// PB22: nhãn từng chương theo quyền của người đang xem
+function ChapterBadge({ isFree, canRead }: { isFree: boolean; canRead: boolean }) {
+  if (isFree) return <span className="shrink-0 rounded bg-green-100 px-1.5 py-0.5 text-xs text-green-700">Miễn phí</span>;
+  if (canRead) return <span className="shrink-0 rounded bg-blue-100 px-1.5 py-0.5 text-xs text-blue-700">Đã mở khóa</span>;
+  return <span className="shrink-0 rounded bg-orange-100 px-1.5 py-0.5 text-xs text-orange-700">🔒 Trả phí</span>;
+}
+
+const SOURCE_TEXT: Record<string, string> = {
+  Package: "Bạn đang đọc truyện này bằng gói đọc còn hạn.",
+  Purchase: "Bạn đã mua truyện này, đọc được toàn bộ chương.",
+  Admin: "Tài khoản quản trị: đọc được toàn bộ chương.",
+};
+
+function AccessNotice({ story, loggedIn }: { story: StoryDetail; loggedIn: boolean }) {
+  if (story.accessType === "Free") return null;
+
+  if (story.hasFullAccess && story.accessSource) {
+    return <p className="mt-4 rounded border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-700">{SOURCE_TEXT[story.accessSource]}</p>;
+  }
+
+  return (
+    <div className="mt-4 rounded border border-orange-200 bg-orange-50 px-3 py-2 text-sm text-orange-800">
+      Truyện có chương trả phí. Để đọc toàn bộ: mua truyện ({formatPrice(story.price)}) hoặc{" "}
+      <Link to="/goi-doc" className="font-medium underline">đăng ký gói đọc</Link>.
+      {!loggedIn && (
+        <>
+          {" "}Bạn cần <Link to="/login" className="font-medium underline">đăng nhập</Link> trước.
+        </>
+      )}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using QuanLyDocTruyen.API.Common;
 using QuanLyDocTruyen.API.DTOs;
 using QuanLyDocTruyen.API.Services;
 
@@ -25,27 +26,25 @@ public class AuthController(IAuthService auth) : ControllerBase
         return Ok(await auth.GetMeAsync(userId));
     }
 
-    // PB04: cập nhật tên hiển thị
+    // PB04: cập nhật hồ sơ
     [Authorize]
     [HttpPut("me")]
-    public async Task<ActionResult<UserDto>> UpdateProfile(UpdateProfileRequest req)
-        => Ok(await auth.UpdateProfileAsync(CurrentUserId, req));
+    public async Task<ActionResult<UserDto>> UpdateMe(UpdateProfileRequest req)
+        => Ok(await auth.UpdateProfileAsync(User.GetUserId()!.Value, req));
 
     // PB04: ảnh đại diện (multipart/form-data, field "file")
     [Authorize]
     [HttpPost("me/avatar")]
     [Consumes("multipart/form-data")]
     public async Task<ActionResult<UserDto>> UploadAvatar(IFormFile file)
-        => Ok(await auth.UploadAvatarAsync(CurrentUserId, file));
+        => Ok(await auth.UploadAvatarAsync(User.GetUserId()!.Value, file));
 
-    // PB04: đổi mật khẩu (cần mật khẩu cũ)
+    // PB04: đổi mật khẩu
     [Authorize]
-    [HttpPut("password")]
+    [HttpPost("change-password")]
     public async Task<IActionResult> ChangePassword(ChangePasswordRequest req)
     {
-        await auth.ChangePasswordAsync(CurrentUserId, req);
+        await auth.ChangePasswordAsync(User.GetUserId()!.Value, req);
         return NoContent();
     }
-
-    private int CurrentUserId => int.Parse(User.FindFirst("sub")!.Value);
 }

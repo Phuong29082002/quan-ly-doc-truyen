@@ -24,7 +24,7 @@ public class ChapterService(AppDbContext db) : IChapterService
 
         var chapter = await db.Chapters
             .Include(c => c.Story)
-            .FirstOrDefaultAsync(c => c.StoryId == storyId && c.Number == number && c.PublishAt <= now)
+            .FirstOrDefaultAsync(c => c.StoryId == storyId && c.Number == number && (isAdmin || c.PublishAt <= now))
             ?? throw new NotFoundException("Không tìm thấy chương");
 
         var story = chapter.Story;
@@ -39,18 +39,21 @@ public class ChapterService(AppDbContext db) : IChapterService
         }
 
         var prev = await db.Chapters
-            .Where(c => c.StoryId == storyId && c.Number < number && c.PublishAt <= now)
+            .Where(c => c.StoryId == storyId && c.Number < number && (isAdmin || c.PublishAt <= now))
             .MaxAsync(c => (int?)c.Number);
 
         var next = await db.Chapters
-            .Where(c => c.StoryId == storyId && c.Number > number && c.PublishAt <= now)
+            .Where(c => c.StoryId == storyId && c.Number > number && (isAdmin || c.PublishAt <= now))
             .MinAsync(c => (int?)c.Number);
 
-        // Ghi nhận lượt đọc (phục vụ thống kê PB15, PB37)
-        chapter.ViewCount++;
-        story.ViewCount++;
-        db.ChapterViews.Add(new ChapterView { ChapterId = chapter.Id, StoryId = storyId, UserId = userId });
-        await db.SaveChangesAsync();
+        // Ghi nhận lượt đọc (phục vụ thống kê PB15, PB37); admin xem trước chương hẹn giờ thì không tính
+        if (chapter.PublishAt <= now)
+        {
+            chapter.ViewCount++;
+            story.ViewCount++;
+            db.ChapterViews.Add(new ChapterView { ChapterId = chapter.Id, StoryId = storyId, UserId = userId });
+            await db.SaveChangesAsync();
+        }
 
         return new ChapterContentDto(
             chapter.Id, storyId, story.Title, chapter.Number, chapter.Title,
@@ -104,8 +107,11 @@ public class ChapterService(AppDbContext db) : IChapterService
         chapter.Title = req.Title.Trim();
         chapter.Content = req.Content;
         chapter.IsFree = req.IsFree;
+        // PB10: để trống giờ phát hành thì chương đang hẹn giờ được phát hành ngay; chương đã phát hành giữ nguyên
         if (req.PublishAt is DateTime publishAt)
             chapter.PublishAt = publishAt.ToUniversalTime();
+        else if (chapter.PublishAt > DateTime.UtcNow)
+            chapter.PublishAt = DateTime.UtcNow;
 
         chapter.Story.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();

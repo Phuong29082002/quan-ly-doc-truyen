@@ -7,6 +7,7 @@ import Alert from "../../components/Alert";
 import CoverImage from "../../components/CoverImage";
 import Pagination from "../../components/Pagination";
 import StatusBadge from "../../components/StatusBadge";
+import AccessBadge from "../../components/AccessBadge";
 import { formatDate, formatNumber } from "../../utils/format";
 
 // PB06, PB07, PB08: danh sách truyện trong trang quản trị
@@ -62,6 +63,7 @@ export default function AdminStoriesPage() {
                 <tr>
                   <th className="px-3 py-2">Truyện</th>
                   <th className="px-3 py-2">Tình trạng</th>
+                  <th className="px-3 py-2">Truy cập</th>
                   <th className="px-3 py-2 text-center">Chương</th>
                   <th className="px-3 py-2 text-center">Lượt đọc</th>
                   <th className="px-3 py-2">Cập nhật</th>
@@ -81,6 +83,7 @@ export default function AdminStoriesPage() {
                       </div>
                     </td>
                     <td className="px-3 py-2"><StatusBadge status={s.status} /></td>
+                    <td className="px-3 py-2"><AccessBadge accessType={s.accessType} /></td>
                     <td className="px-3 py-2 text-center">{s.chapterCount}</td>
                     <td className="px-3 py-2 text-center">{formatNumber(s.viewCount)}</td>
                     <td className="px-3 py-2">{formatDate(s.updatedAt)}</td>
@@ -92,7 +95,7 @@ export default function AdminStoriesPage() {
                 ))}
                 {state.data.items.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-3 py-8 text-center text-gray-500">Không có truyện nào</td>
+                    <td colSpan={7} className="px-3 py-8 text-center text-gray-500">Không có truyện nào</td>
                   </tr>
                 )}
               </tbody>

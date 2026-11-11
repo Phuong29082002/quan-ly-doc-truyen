@@ -41,6 +41,7 @@ import com.huflit.quanlydoctruyen.data.SessionManager
 import com.huflit.quanlydoctruyen.data.UiState
 import com.huflit.quanlydoctruyen.data.formatVnd
 import com.huflit.quanlydoctruyen.data.load
+import com.huflit.quanlydoctruyen.ui.components.ChapterBody
 import com.huflit.quanlydoctruyen.ui.components.ErrorBox
 import com.huflit.quanlydoctruyen.ui.components.LoadingBox
 
@@ -103,14 +104,8 @@ fun ReadChapterScreen(storyId: Int, number: Int, onGoTo: (Int) -> Unit, onLogin:
 
                         ChapterNav(c, onGoTo)
 
-                        c.content.split(Regex("\n+")).filter { it.isNotBlank() }.forEach { paragraph ->
-                            Text(
-                                paragraph.trim(),
-                                fontSize = fontSize.sp,
-                                lineHeight = (fontSize * 1.7f).sp,
-                                modifier = Modifier.padding(vertical = 8.dp)
-                            )
-                        }
+                        // PB43: chữ xen kẽ ảnh minh họa
+                        ChapterBody(c.content, fontSize)
 
                         ChapterNav(c, onGoTo)
                     }

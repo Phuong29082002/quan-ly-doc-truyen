@@ -136,9 +136,9 @@ fun HomeScreen(onOpenStory: (Int) -> Unit, onLogin: () -> Unit, onProfile: () ->
                 title = { Text("Đọc Truyện", fontWeight = FontWeight.Bold) },
                 actions = {
                     if (user != null) {
+                        // PB04: bấm vào tên để mở trang tài khoản (có nút đăng xuất)
                         Avatar(user.avatarUrl, user.displayName, 28.dp)
-                        TextButton(onClick = onProfile) { Text(user.displayName) }
-                        TextButton(onClick = { SessionManager.logout() }) { Text("Đăng xuất") }
+                        TextButton(onClick = onProfile) { Text(user.displayName, maxLines = 1, overflow = TextOverflow.Ellipsis) }
                     } else {
                         TextButton(onClick = onLogin) { Text("Đăng nhập") }
                     }

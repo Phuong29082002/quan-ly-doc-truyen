@@ -11,12 +11,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -32,10 +31,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -53,37 +52,39 @@ import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import retrofit2.HttpException
 import kotlin.coroutines.cancellation.CancellationException
 
-// PB04: xem hồ sơ, đổi tên hiển thị, đổi mật khẩu
+// PB04: xem, cập nhật hồ sơ và đổi mật khẩu
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(onBack: () -> Unit) {
     val user = SessionManager.user
-    if (user == null) {
-        LaunchedEffect(Unit) { onBack() }
-        return
-    }
-
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current
 
-    var avatarMessage by remember { mutableStateOf<Pair<Boolean, String>?>(null) }
+    // Đăng xuất (hoặc token hết hạn) thì quay về màn hình trước
+    LaunchedEffect(user) {
+        if (user == null) onBack()
+    }
+    if (user == null) return
+
+    val context = LocalContext.current
+    var avatarMsg by remember { mutableStateOf<Pair<Boolean, String>?>(null) }
     var uploadingAvatar by remember { mutableStateOf(false) }
 
-    var displayName by rememberSaveable { mutableStateOf(user.displayName) }
-    var infoMessage by remember { mutableStateOf<Pair<Boolean, String>?>(null) }
-    var savingInfo by remember { mutableStateOf(false) }
+    var displayName by remember { mutableStateOf(user.displayName) }
+    var profileMsg by remember { mutableStateOf<Pair<Boolean, String>?>(null) }
+    var savingProfile by remember { mutableStateOf(false) }
 
-    var current by rememberSaveable { mutableStateOf("") }
-    var next by rememberSaveable { mutableStateOf("") }
-    var confirm by rememberSaveable { mutableStateOf("") }
-    var passMessage by remember { mutableStateOf<Pair<Boolean, String>?>(null) }
+    var current by remember { mutableStateOf("") }
+    var newPass by remember { mutableStateOf("") }
+    var confirm by remember { mutableStateOf("") }
+    var passMsg by remember { mutableStateOf<Pair<Boolean, String>?>(null) }
     var savingPass by remember { mutableStateOf(false) }
 
-    // Ảnh đại diện: đọc ảnh đã chọn, gửi multipart (field "file") lên API
+    // PB04: đọc ảnh đã chọn, gửi multipart (field "file") lên API
     fun uploadAvatar(uri: Uri) {
-        avatarMessage = null
+        avatarMsg = null
         scope.launch {
             uploadingAvatar = true
             try {
@@ -96,25 +97,25 @@ fun ProfileScreen(onBack: () -> Unit) {
                     else -> null
                 }
                 if (ext == null) {
-                    avatarMessage = false to "Chỉ chấp nhận ảnh JPG, PNG, WEBP"
+                    avatarMsg = false to "Chỉ chấp nhận ảnh JPG, PNG, WEBP"
                     return@launch
                 }
                 val bytes = withContext(Dispatchers.IO) { resolver.openInputStream(uri)?.use { it.readBytes() } }
                 if (bytes == null || bytes.isEmpty()) {
-                    avatarMessage = false to "Không đọc được ảnh"
+                    avatarMsg = false to "Không đọc được ảnh"
                     return@launch
                 }
                 if (bytes.size > 2 * 1024 * 1024) {
-                    avatarMessage = false to "Ảnh đại diện tối đa 2MB"
+                    avatarMsg = false to "Ảnh đại diện tối đa 2MB"
                     return@launch
                 }
                 val part = MultipartBody.Part.createFormData("file", "avatar$ext", bytes.toRequestBody(mime.toMediaType()))
                 SessionManager.updateUser(ApiClient.api.uploadAvatar(part))
-                avatarMessage = true to "Đã đổi ảnh đại diện"
+                avatarMsg = true to "Đã đổi ảnh đại diện"
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                avatarMessage = false to e.toMessage("Tải ảnh thất bại")
+                avatarMsg = false to e.toMessage("Tải ảnh thất bại")
             } finally {
                 uploadingAvatar = false
             }
@@ -125,47 +126,49 @@ fun ProfileScreen(onBack: () -> Unit) {
         if (uri != null) uploadAvatar(uri)
     }
 
-    fun saveInfo() {
-        infoMessage = null
-        if (displayName.isBlank()) {
-            infoMessage = false to "Vui lòng nhập tên hiển thị"
+    fun saveProfile() {
+        val name = displayName.trim()
+        if (name.isEmpty()) {
+            profileMsg = false to "Vui lòng nhập tên hiển thị"
             return
         }
         scope.launch {
-            savingInfo = true
+            savingProfile = true
+            profileMsg = null
             try {
-                val updated = ApiClient.api.updateProfile(UpdateProfileRequest(displayName.trim()))
-                SessionManager.updateUser(updated)
-                infoMessage = true to "Đã cập nhật hồ sơ"
+                SessionManager.updateUser(ApiClient.api.updateProfile(UpdateProfileRequest(name)))
+                profileMsg = true to "Đã cập nhật tên hiển thị"
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                infoMessage = false to e.toMessage("Cập nhật thất bại")
+                profileMsg = false to e.toMessage("Cập nhật thất bại")
             } finally {
-                savingInfo = false
+                savingProfile = false
             }
         }
     }
 
-    fun savePassword() {
-        passMessage = null
-        when {
-            current.isEmpty() -> { passMessage = false to "Vui lòng nhập mật khẩu hiện tại"; return }
-            next.length < 6 -> { passMessage = false to "Mật khẩu mới tối thiểu 6 ký tự"; return }
-            next != confirm -> { passMessage = false to "Mật khẩu nhập lại không khớp"; return }
+    fun changePassword() {
+        passMsg = when {
+            current.isEmpty() || newPass.isEmpty() -> false to "Vui lòng nhập đầy đủ mật khẩu"
+            newPass.length < 6 -> false to "Mật khẩu mới tối thiểu 6 ký tự"
+            newPass != confirm -> false to "Xác nhận mật khẩu không khớp"
+            else -> null
         }
+        if (passMsg != null) return
         scope.launch {
             savingPass = true
             try {
-                ApiClient.api.changePassword(ChangePasswordRequest(current, next))
+                val res = ApiClient.api.changePassword(ChangePasswordRequest(current, newPass))
+                if (!res.isSuccessful) throw HttpException(res)
                 current = ""
-                next = ""
+                newPass = ""
                 confirm = ""
-                passMessage = true to "Đã đổi mật khẩu"
+                passMsg = true to "Đổi mật khẩu thành công"
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                passMessage = false to e.toMessage("Đổi mật khẩu thất bại")
+                passMsg = false to e.toMessage("Đổi mật khẩu thất bại")
             } finally {
                 savingPass = false
             }
@@ -175,33 +178,35 @@ fun ProfileScreen(onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Tài khoản") },
+                title = { Text("Tài khoản của tôi") },
                 navigationIcon = { TextButton(onClick = onBack) { Text("‹ Quay lại") } }
             )
         }
     ) { padding ->
         Column(
-            Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp)
+            Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)
         ) {
-            Text("Thông tin cá nhân", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.height(12.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Avatar(user.avatarUrl, user.displayName, 72.dp)
-                Spacer(Modifier.width(16.dp))
-                OutlinedButton(
-                    onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-                    enabled = !uploadingAvatar
-                ) {
-                    Text(if (uploadingAvatar) "Đang tải..." else "Đổi ảnh đại diện")
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Avatar(user.avatarUrl, user.displayName, 72.dp)
+                        Column(Modifier.padding(start = 16.dp)) {
+                            Text(user.displayName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                            OutlinedButton(
+                                onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                                enabled = !uploadingAvatar
+                            ) {
+                                Text(if (uploadingAvatar) "Đang tải..." else "Đổi ảnh đại diện")
+                            }
+                        }
+                    }
+                    Message(avatarMsg)
+                    Text("Tên đăng nhập: ${user.username}", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
+                    Text("Email: ${user.email}", style = MaterialTheme.typography.bodyMedium)
                 }
             }
-            MessageText(avatarMessage)
-            Spacer(Modifier.height(12.dp))
-            Text("Tên đăng nhập: ${user.username}")
-            Text("Email: ${user.email}")
-            Text("Vai trò: ${if (user.role == "Admin") "Quản trị viên" else "Thành viên"}")
-            Spacer(Modifier.height(12.dp))
 
+            SectionTitle("Thông tin cá nhân")
             OutlinedTextField(
                 value = displayName,
                 onValueChange = { displayName = it },
@@ -209,32 +214,38 @@ fun ProfileScreen(onBack: () -> Unit) {
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
-            MessageText(infoMessage)
-            Spacer(Modifier.height(12.dp))
-            Button(onClick = { saveInfo() }, enabled = !savingInfo, modifier = Modifier.fillMaxWidth()) {
-                if (savingInfo) CircularProgressIndicator(Modifier.height(20.dp), strokeWidth = 2.dp)
-                else Text("Lưu thay đổi")
+            Message(profileMsg)
+            Button(onClick = { saveProfile() }, enabled = !savingProfile, modifier = Modifier.padding(top = 8.dp)) {
+                Text(if (savingProfile) "Đang lưu..." else "Lưu thay đổi")
             }
 
-            Spacer(Modifier.height(24.dp))
-            HorizontalDivider()
-            Spacer(Modifier.height(24.dp))
+            HorizontalDivider(Modifier.padding(vertical = 20.dp))
 
-            Text("Đổi mật khẩu", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.height(12.dp))
+            SectionTitle("Đổi mật khẩu")
             PasswordField("Mật khẩu hiện tại", current) { current = it }
-            Spacer(Modifier.height(12.dp))
-            PasswordField("Mật khẩu mới", next) { next = it }
-            Spacer(Modifier.height(12.dp))
+            PasswordField("Mật khẩu mới", newPass) { newPass = it }
             PasswordField("Nhập lại mật khẩu mới", confirm) { confirm = it }
-            MessageText(passMessage)
-            Spacer(Modifier.height(12.dp))
-            Button(onClick = { savePassword() }, enabled = !savingPass, modifier = Modifier.fillMaxWidth()) {
-                if (savingPass) CircularProgressIndicator(Modifier.height(20.dp), strokeWidth = 2.dp)
-                else Text("Đổi mật khẩu")
+            Message(passMsg)
+            Button(onClick = { changePassword() }, enabled = !savingPass, modifier = Modifier.padding(top = 8.dp)) {
+                Text(if (savingPass) "Đang đổi..." else "Đổi mật khẩu")
+            }
+
+            Spacer(Modifier.height(28.dp))
+            OutlinedButton(onClick = { SessionManager.logout() }, modifier = Modifier.fillMaxWidth()) {
+                Text("Đăng xuất")
             }
         }
     }
+}
+
+@Composable
+private fun SectionTitle(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.SemiBold,
+        modifier = Modifier.padding(top = 20.dp, bottom = 8.dp)
+    )
 }
 
 @Composable
@@ -246,17 +257,17 @@ private fun PasswordField(label: String, value: String, onChange: (String) -> Un
         singleLine = true,
         visualTransformation = PasswordVisualTransformation(),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
     )
 }
 
-/** (thành công?, nội dung) */
+/** first = true: thành công (xanh), false: lỗi (đỏ) */
 @Composable
-private fun MessageText(message: Pair<Boolean, String>?) {
-    if (message == null) return
+private fun Message(msg: Pair<Boolean, String>?) {
+    if (msg == null) return
     Text(
-        message.second,
-        color = if (message.first) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
-        modifier = Modifier.padding(top = 12.dp)
+        msg.second,
+        color = if (msg.first) Color(0xFF15803D) else MaterialTheme.colorScheme.error,
+        modifier = Modifier.padding(top = 4.dp)
     )
 }

@@ -1,147 +1,128 @@
-import { useState, type ChangeEvent, type FormEvent } from "react";
-import { Navigate } from "react-router";
+import { useState, type FormEvent } from "react";
 import { authApi } from "../api/auth";
 import { assetUrl, getErrorMessage } from "../api/client";
 import { useAuth } from "../auth/useAuth";
 import Alert from "../components/Alert";
 import FormField from "../components/FormField";
 
-type Message = { type: "error" | "success"; text: string } | null;
+type Msg = { type: "error" | "success"; text: string } | null;
 
-// PB04: xem và cập nhật hồ sơ, ảnh đại diện, đổi mật khẩu
+// PB04: xem, cập nhật hồ sơ và đổi mật khẩu
 export default function ProfilePage() {
-  const { user } = useAuth();
-  if (!user) return <Navigate to="/login" replace state={{ from: "/tai-khoan" }} />;
+  const { user, updateUser } = useAuth();
+
+  const [displayName, setDisplayName] = useState(user?.displayName ?? "");
+  const [profileMsg, setProfileMsg] = useState<Msg>(null);
+
+  const [pw, setPw] = useState({ current: "", next: "", confirm: "" });
+  const [pwMsg, setPwMsg] = useState<Msg>(null);
+  const [saving, setSaving] = useState<"profile" | "password" | "avatar" | null>(null);
+  const [avatarMsg, setAvatarMsg] = useState<Msg>(null);
+
+  if (!user) return null;
+
+  async function saveProfile(e: FormEvent) {
+    e.preventDefault();
+    setProfileMsg(null);
+    if (!displayName.trim()) return setProfileMsg({ type: "error", text: "Vui lòng nhập tên hiển thị" });
+
+    setSaving("profile");
+    try {
+      updateUser(await authApi.updateProfile(displayName.trim()));
+      setProfileMsg({ type: "success", text: "Đã cập nhật tên hiển thị" });
+    } catch (err) {
+      setProfileMsg({ type: "error", text: getErrorMessage(err) });
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  async function uploadAvatar(file: File | null) {
+    if (!file) return;
+    setAvatarMsg(null);
+    if (!/\.(jpe?g|png|webp)$/i.test(file.name)) return setAvatarMsg({ type: "error", text: "Chỉ chấp nhận ảnh JPG, PNG, WEBP" });
+    if (file.size > 2 * 1024 * 1024) return setAvatarMsg({ type: "error", text: "Ảnh đại diện tối đa 2MB" });
+
+    setSaving("avatar");
+    try {
+      updateUser(await authApi.uploadAvatar(file));
+      setAvatarMsg({ type: "success", text: "Đã đổi ảnh đại diện" });
+    } catch (err) {
+      setAvatarMsg({ type: "error", text: getErrorMessage(err, "Tải ảnh thất bại") });
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  async function changePassword(e: FormEvent) {
+    e.preventDefault();
+    setPwMsg(null);
+    if (!pw.current || !pw.next) return setPwMsg({ type: "error", text: "Vui lòng nhập đầy đủ mật khẩu" });
+    if (pw.next.length < 6) return setPwMsg({ type: "error", text: "Mật khẩu mới tối thiểu 6 ký tự" });
+    if (pw.next !== pw.confirm) return setPwMsg({ type: "error", text: "Mật khẩu nhập lại không khớp" });
+
+    setSaving("password");
+    try {
+      await authApi.changePassword(pw.current, pw.next);
+      setPw({ current: "", next: "", confirm: "" });
+      setPwMsg({ type: "success", text: "Đã đổi mật khẩu" });
+    } catch (err) {
+      setPwMsg({ type: "error", text: getErrorMessage(err) });
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  const btn = "rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60";
 
   return (
     <div className="mx-auto max-w-xl space-y-6">
       <h1 className="text-2xl font-bold">Tài khoản của tôi</h1>
-      <InfoSection />
-      <PasswordSection />
-    </div>
-  );
-}
 
-function InfoSection() {
-  const { user, updateUser } = useAuth();
-  const [displayName, setDisplayName] = useState(user!.displayName);
-  const [message, setMessage] = useState<Message>(null);
-  const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
+      <div className="rounded-lg border bg-white p-5">
+        <div className="mb-4 flex items-center gap-4">
+          {user.avatarUrl ? (
+            <img src={assetUrl(user.avatarUrl)!} alt="" className="h-20 w-20 rounded-full object-cover" />
+          ) : (
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-blue-600 text-3xl font-semibold text-white">
+              {user.displayName.charAt(0).toUpperCase()}
+            </div>
+          )}
+          <div>
+            <input type="file" accept=".jpg,.jpeg,.png,.webp" disabled={saving !== null}
+              onChange={(e) => { uploadAvatar(e.target.files?.[0] ?? null); e.target.value = ""; }} className="block text-sm" />
+            <p className="mt-1 text-xs text-gray-500">JPG, PNG hoặc WEBP, tối đa 2MB</p>
+          </div>
+        </div>
+        {avatarMsg && <Alert type={avatarMsg.type}>{avatarMsg.text}</Alert>}
 
-  async function handleSave(e: FormEvent) {
-    e.preventDefault();
-    setMessage(null);
-    if (!displayName.trim()) return setMessage({ type: "error", text: "Vui lòng nhập tên hiển thị" });
+        <dl className="mb-4 grid grid-cols-[130px_1fr] gap-y-1.5 text-sm">
+          <dt className="text-gray-500">Tên đăng nhập</dt>
+          <dd>{user.username}</dd>
+          <dt className="text-gray-500">Email</dt>
+          <dd>{user.email}</dd>
+          <dt className="text-gray-500">Vai trò</dt>
+          <dd>{user.role === "Admin" ? "Quản trị viên" : "Thành viên"}</dd>
+        </dl>
 
-    setSaving(true);
-    try {
-      updateUser(await authApi.updateProfile(displayName.trim()));
-      setMessage({ type: "success", text: "Đã cập nhật hồ sơ" });
-    } catch (err) {
-      setMessage({ type: "error", text: getErrorMessage(err, "Cập nhật thất bại") });
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleAvatar(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    setMessage(null);
-    if (file.size > 2 * 1024 * 1024) return setMessage({ type: "error", text: "Ảnh đại diện tối đa 2MB" });
-
-    setUploading(true);
-    try {
-      updateUser(await authApi.uploadAvatar(file));
-      setMessage({ type: "success", text: "Đã đổi ảnh đại diện" });
-    } catch (err) {
-      setMessage({ type: "error", text: getErrorMessage(err, "Tải ảnh thất bại") });
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  return (
-    <section className="rounded-lg border bg-white p-5">
-      <h2 className="mb-4 text-lg font-semibold">Thông tin cá nhân</h2>
-      {message && <Alert type={message.type}>{message.text}</Alert>}
-
-      <div className="mb-5 flex items-center gap-4">
-        {user!.avatarUrl ? (
-          <img src={assetUrl(user!.avatarUrl)!} alt="" className="h-20 w-20 rounded-full object-cover" />
-        ) : (
-          <span className="flex h-20 w-20 items-center justify-center rounded-full bg-blue-100 text-3xl font-semibold text-blue-700">
-            {user!.displayName.charAt(0).toUpperCase()}
-          </span>
-        )}
-        <label className="cursor-pointer rounded border px-3 py-1.5 text-sm hover:bg-gray-50">
-          {uploading ? "Đang tải..." : "Đổi ảnh đại diện"}
-          <input type="file" accept=".jpg,.jpeg,.png,.webp" className="hidden" disabled={uploading} onChange={handleAvatar} />
-        </label>
-        <span className="text-xs text-gray-500">JPG, PNG, WEBP, tối đa 2MB</span>
+        <form onSubmit={saveProfile} noValidate>
+          {profileMsg && <Alert type={profileMsg.type}>{profileMsg.text}</Alert>}
+          <FormField label="Tên hiển thị" name="displayName" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+          <button disabled={saving !== null} className={btn}>{saving === "profile" ? "Đang lưu..." : "Lưu"}</button>
+        </form>
       </div>
 
-      <dl className="mb-4 grid grid-cols-[110px_1fr] gap-y-1.5 text-sm">
-        <dt className="text-gray-500">Tên đăng nhập</dt>
-        <dd>{user!.username}</dd>
-        <dt className="text-gray-500">Email</dt>
-        <dd>{user!.email}</dd>
-        <dt className="text-gray-500">Vai trò</dt>
-        <dd>{user!.role === "Admin" ? "Quản trị viên" : "Thành viên"}</dd>
-      </dl>
-
-      <form onSubmit={handleSave} noValidate>
-        <FormField label="Tên hiển thị" name="displayName" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
-        <button disabled={saving} className="rounded bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60">
-          {saving ? "Đang lưu..." : "Lưu thay đổi"}
-        </button>
-      </form>
-    </section>
-  );
-}
-
-function PasswordSection() {
-  const [form, setForm] = useState({ current: "", next: "", confirm: "" });
-  const [message, setMessage] = useState<Message>(null);
-  const [saving, setSaving] = useState(false);
-
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    setMessage(null);
-    if (!form.current) return setMessage({ type: "error", text: "Vui lòng nhập mật khẩu hiện tại" });
-    if (form.next.length < 6) return setMessage({ type: "error", text: "Mật khẩu mới tối thiểu 6 ký tự" });
-    if (form.next !== form.confirm) return setMessage({ type: "error", text: "Mật khẩu nhập lại không khớp" });
-
-    setSaving(true);
-    try {
-      await authApi.changePassword(form.current, form.next);
-      setForm({ current: "", next: "", confirm: "" });
-      setMessage({ type: "success", text: "Đã đổi mật khẩu" });
-    } catch (err) {
-      setMessage({ type: "error", text: getErrorMessage(err, "Đổi mật khẩu thất bại") });
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <section className="rounded-lg border bg-white p-5">
-      <h2 className="mb-4 text-lg font-semibold">Đổi mật khẩu</h2>
-      {message && <Alert type={message.type}>{message.text}</Alert>}
-
-      <form onSubmit={handleSubmit} noValidate>
+      <form onSubmit={changePassword} className="rounded-lg border bg-white p-5" noValidate>
+        <h2 className="mb-4 text-lg font-semibold">Đổi mật khẩu</h2>
+        {pwMsg && <Alert type={pwMsg.type}>{pwMsg.text}</Alert>}
         <FormField label="Mật khẩu hiện tại" name="current" type="password" autoComplete="current-password"
-          value={form.current} onChange={(e) => setForm({ ...form, current: e.target.value })} />
+          value={pw.current} onChange={(e) => setPw({ ...pw, current: e.target.value })} />
         <FormField label="Mật khẩu mới" name="next" type="password" autoComplete="new-password"
-          value={form.next} onChange={(e) => setForm({ ...form, next: e.target.value })} />
+          value={pw.next} onChange={(e) => setPw({ ...pw, next: e.target.value })} />
         <FormField label="Nhập lại mật khẩu mới" name="confirm" type="password" autoComplete="new-password"
-          value={form.confirm} onChange={(e) => setForm({ ...form, confirm: e.target.value })} />
-        <button disabled={saving} className="rounded bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60">
-          {saving ? "Đang lưu..." : "Đổi mật khẩu"}
-        </button>
+          value={pw.confirm} onChange={(e) => setPw({ ...pw, confirm: e.target.value })} />
+        <button disabled={saving !== null} className={btn}>{saving === "password" ? "Đang đổi..." : "Đổi mật khẩu"}</button>
       </form>
-    </section>
+    </div>
   );
 }

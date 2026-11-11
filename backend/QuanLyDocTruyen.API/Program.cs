@@ -42,6 +42,7 @@ builder.Services.AddScoped<IGenreService, GenreService>();
 builder.Services.AddScoped<IStoryService, StoryService>();
 builder.Services.AddScoped<IChapterService, ChapterService>();
 builder.Services.AddScoped<IPackageService, PackageService>();
+builder.Services.AddScoped<IImageUploadService, ImageUploadService>();
 
 builder.Services.AddControllers().AddJsonOptions(o =>
 {

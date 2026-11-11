@@ -28,3 +28,7 @@ export function toLocalInput(iso: string): string {
 export function formatNumber(n: number): string {
   return n.toLocaleString("vi-VN");
 }
+
+export function formatPrice(n: number): string {
+  return `${n.toLocaleString("vi-VN")}đ`;
+}

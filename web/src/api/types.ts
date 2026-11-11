@@ -64,7 +64,10 @@ export interface ChapterListItem {
   id: number;
   number: number;
   title: string;
+  /** Chương miễn phí */
   isFree: boolean;
+  /** Người đang xem đọc được (miễn phí, có gói hoặc đã mua) */
+  canRead: boolean;
   isPublished: boolean;
   publishAt: string;
 }
@@ -84,6 +87,10 @@ export interface StoryDetail {
   updatedAt: string;
   genres: GenreRef[];
   chapters: ChapterListItem[];
+  /** Có quyền đọc toàn bộ truyện */
+  hasFullAccess: boolean;
+  /** "Admin" | "Package" | "Purchase" | null */
+  accessSource: string | null;
 }
 
 export interface StoryRequest {
@@ -126,6 +133,12 @@ export interface ChapterRequest {
   isFree: boolean;
   publishAt?: string | null;
 }
+
+export const ACCESS_LABEL: Record<AccessType, string> = {
+  Free: "Miễn phí",
+  Paid: "Trả phí",
+  Mixed: "Kết hợp",
+};
 
 export const STATUS_LABEL: Record<StoryStatus, string> = {
   Ongoing: "Đang ra",
