@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import { storyApi } from "../api/catalog";
 import { getErrorMessage } from "../api/client";
 import type { StoryDetail } from "../api/types";
@@ -8,16 +8,21 @@ import StatusBadge from "../components/StatusBadge";
 import AccessBadge from "../components/AccessBadge";
 import { useAuth } from "../auth/useAuth";
 import { formatDate, formatDateTime, formatNumber, formatPrice } from "../utils/format";
+import { paymentApi, type ReadingProgress } from "../api/payments";
 
 // PB13: thông tin truyện + danh sách chương kèm trạng thái truy cập
 export default function StoryDetailPage() {
   const id = Number(useParams().id);
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
+  const navigate = useNavigate();
   const key = `${id}-${user?.id ?? 0}`;
   const [state, setState] = useState<{ key: string; data?: StoryDetail; error?: string }>();
+  const [progress, setProgress] = useState<ReadingProgress | null>(null);
 
   useEffect(() => {
     let ignore = false;
+    if (user) paymentApi.progress().then(items => { if (!ignore) setProgress(items.find(x => x.storyId === id) ?? null); }).catch(() => {});
+    else setProgress(null);
     storyApi
       .detail(id)
       .then((data) => !ignore && setState({ key, data }))
@@ -66,7 +71,9 @@ export default function StoryDetailPage() {
           </dl>
 
           <div className="mt-4 flex gap-2">
-            {first ? (
+            {progress ? (
+              <Link to={`/truyen/${story.id}/chuong/${progress.chapterNumber}`} className="rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700">Đọc tiếp chương {progress.chapterNumber}</Link>
+            ) : first ? (
               <Link to={`/truyen/${story.id}/chuong/${first.number}`} className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
                 Đọc từ đầu
               </Link>
@@ -80,6 +87,7 @@ export default function StoryDetailPage() {
             )}
           </div>
 
+          {user && !isAdmin && !story.hasFullAccess && story.price > 0 && story.accessType !== "Free" && <div className="mt-3"><button onClick={() => navigate("/thanh-toan", { state: { type: "Story", itemId: story.id, itemName: story.title, amount: story.price, description: "Quyền đọc truyện vĩnh viễn" } })} className="rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white">Mua quyền đọc vĩnh viễn · {formatPrice(story.price)}</button></div>}
           <AccessNotice story={story} loggedIn={!!user} />
 
           {story.description && <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-gray-700">{story.description}</p>}
@@ -130,7 +138,7 @@ const SOURCE_TEXT: Record<string, string> = {
 };
 
 function AccessNotice({ story, loggedIn }: { story: StoryDetail; loggedIn: boolean }) {
-  if (story.accessType === "Free") return null;
+  if (story.accessType === "Free" || story.accessSource === "Admin") return null;
 
   if (story.hasFullAccess && story.accessSource) {
     return <p className="mt-4 rounded border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-700">{SOURCE_TEXT[story.accessSource]}</p>;

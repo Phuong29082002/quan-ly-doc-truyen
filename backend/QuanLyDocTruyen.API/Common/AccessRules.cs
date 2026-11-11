@@ -32,7 +32,7 @@ public static class AccessRules
 
         var hasPackage = await db.UserPackages.AnyAsync(up =>
             up.UserId == userId &&
-            up.StartAt <= now && up.EndAt > now &&
+            !up.IsPaused && up.StartAt <= now && up.EndAt > now &&
             (up.Package.Scope == PackageScope.All || up.Package.PackageStories.Any(ps => ps.StoryId == storyId)));
 
         return hasPackage ? ReadAccess.Package : ReadAccess.None;

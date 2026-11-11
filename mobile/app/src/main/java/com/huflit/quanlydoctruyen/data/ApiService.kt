@@ -68,9 +68,21 @@ interface ApiService {
     @GET("api/stories/{storyId}/chapters/{number}")
     suspend fun readChapter(@Path("storyId") storyId: Int, @Path("number") number: Int): ChapterContent
 
-    // PB18: gói đọc đang bán
+    // PB18-PB21: gói đọc và thanh toán giả lập
     @GET("api/packages")
     suspend fun packages(): List<PackageItem>
+
+    @POST("api/payments/checkout")
+    suspend fun checkout(@Body body: CheckoutRequest): CheckoutResult
+
+    @GET("api/payments/history")
+    suspend fun paymentHistory(): PaymentOverview
+
+    @GET("api/reading-progress")
+    suspend fun readingProgress(): List<ReadingProgressItem>
+
+    @PUT("api/reading-progress")
+    suspend fun saveReadingProgress(@Body body: ReadingProgressRequest): ReadingProgressItem
 }
 
 object ApiClient {

@@ -119,3 +119,14 @@ fun formatVnd(amount: Double): String =
     NumberFormat.getIntegerInstance(Locale.forLanguageTag("vi-VN")).format(amount) + "đ"
 
 fun statusLabel(status: String) = if (status == "Completed") "Hoàn thành" else "Đang ra"
+
+
+data class CheckoutRequest(val type: String, val itemId: Int, val simulateSuccess: Boolean = true, val packageMode: String = "Purchase")
+data class CheckoutResult(val transactionId: Int, val status: String, val amount: Double, val createdAt: String = "", val paidAt: String? = null, val message: String)
+data class ReadingProgressRequest(val storyId: Int, val chapterId: Int, val position: Double = 0.0)
+data class ReadingProgressItem(val storyId: Int, val storyTitle: String, val chapterId: Int, val chapterNumber: Int, val chapterTitle: String, val position: Double, val updatedAt: String)
+
+data class PaymentOverview(val transactions: List<PaymentHistoryItem>, val purchasedStories: List<OwnedStoryItem>, val packages: List<ActivePackageItem>)
+data class PaymentHistoryItem(val id: Int, val type: String, val itemName: String?, val amount: Double, val status: String, val createdAt: String, val paidAt: String?)
+data class OwnedStoryItem(val storyId: Int, val title: String, val price: Double, val purchasedAt: String)
+data class ActivePackageItem(val packageId: Int, val packageName: String, val startAt: String, val endAt: String, val isActive: Boolean, val isPaused: Boolean, val remainingDays: Int)

@@ -49,6 +49,7 @@ import com.huflit.quanlydoctruyen.data.ApiClient
 import com.huflit.quanlydoctruyen.data.Genre
 import com.huflit.quanlydoctruyen.data.SessionManager
 import com.huflit.quanlydoctruyen.data.StoryListItem
+import com.huflit.quanlydoctruyen.data.ReadingProgressItem
 import com.huflit.quanlydoctruyen.data.toMessage
 import com.huflit.quanlydoctruyen.ui.components.Avatar
 import com.huflit.quanlydoctruyen.ui.components.CoverImage
@@ -62,13 +63,14 @@ private val SORTS = listOf("updated" to "Mới cập nhật", "newest" to "Mới
 // PB11: tìm kiếm truyện, PB12: các danh sách gợi ý
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(onOpenStory: (Int) -> Unit, onLogin: () -> Unit, onProfile: () -> Unit) {
+fun HomeScreen(onOpenStory: (Int) -> Unit, onLogin: () -> Unit, onProfile: () -> Unit, onContinueReading: (Int, Int) -> Unit) {
     var input by rememberSaveable { mutableStateOf("") }
     var keyword by rememberSaveable { mutableStateOf("") }
     var sort by rememberSaveable { mutableStateOf("updated") }
     var genreId by rememberSaveable { mutableStateOf<Int?>(null) }
 
     val genres = remember { mutableStateListOf<Genre>() }
+    var recentReads by remember { mutableStateOf<List<ReadingProgressItem>>(emptyList()) }
 
     val stories = remember { mutableStateListOf<StoryListItem>() }
     var page by remember { mutableIntStateOf(1) }
@@ -77,6 +79,10 @@ fun HomeScreen(onOpenStory: (Int) -> Unit, onLogin: () -> Unit, onProfile: () ->
     var error by remember { mutableStateOf<String?>(null) }
     var reloadKey by remember { mutableIntStateOf(0) }
     val scope = rememberCoroutineScope()
+
+    LaunchedEffect(SessionManager.user?.id, SessionManager.readingProgressVersion) {
+        recentReads = if (SessionManager.user == null) emptyList() else runCatching { ApiClient.api.readingProgress() }.getOrDefault(emptyList())
+    }
 
     // Danh sách thể loại để lọc
     LaunchedEffect(reloadKey) {
@@ -199,6 +205,20 @@ fun HomeScreen(onOpenStory: (Int) -> Unit, onLogin: () -> Unit, onProfile: () ->
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
+                    if (recentReads.isNotEmpty()) {
+                        item {
+                            Text("ĐỌC GẦN ĐÂY", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        }
+                        items(recentReads, key = { "recent-${it.storyId}" }) { item ->
+                            Card(Modifier.fillMaxWidth().clickable { onContinueReading(item.storyId, item.chapterNumber) }) {
+                                Column(Modifier.padding(12.dp)) {
+                                    Text(item.storyTitle, fontWeight = FontWeight.SemiBold)
+                                    Text("Đọc tiếp chương ${item.chapterNumber}: ${item.chapterTitle}", style = MaterialTheme.typography.bodySmall)
+                                }
+                            }
+                        }
+                        item { Spacer(Modifier.height(8.dp)); Text("DANH SÁCH TRUYỆN", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
+                    }
                     items(stories, key = { it.id }) { story ->
                         StoryRow(story, onClick = { onOpenStory(story.id) })
                     }

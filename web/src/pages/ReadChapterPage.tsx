@@ -7,6 +7,7 @@ import type { ChapterContent } from "../api/types";
 import { useAuth } from "../auth/useAuth";
 import { formatNumber } from "../utils/format";
 import ChapterContentView from "../components/ChapterContentView";
+import { paymentApi } from "../api/payments";
 
 const SETTINGS_KEY = "qldt_reader";
 
@@ -52,6 +53,7 @@ export default function ReadChapterPage() {
       .then((data) => {
         if (ignore) return;
         setState({ key, data });
+        if (user) paymentApi.saveProgress(data.storyId, data.id, 0).catch(() => {});
         window.scrollTo({ top: 0 });
       })
       .catch((err) => {
@@ -66,7 +68,7 @@ export default function ReadChapterPage() {
     return () => {
       ignore = true;
     };
-  }, [key, storyId, number]);
+  }, [key, storyId, number, user?.id]);
 
   function changeSettings(next: Partial<ReaderSettings>) {
     const merged = { ...settings, ...next };
@@ -100,7 +102,7 @@ export default function ReadChapterPage() {
             <p className="mt-4 text-gray-700">Bạn cần có gói đọc còn hạn hoặc mua truyện để đọc chương này.</p>
             {lock.price ? <p className="mt-2 text-sm text-gray-600">Giá mua truyện: <b>{formatNumber(lock.price)}đ</b></p> : null}
             <Link to="/goi-doc" className="mt-4 inline-block rounded bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700">Xem các gói đọc</Link>
-            <p className="mt-3 text-xs text-gray-500">Chức năng thanh toán sẽ được bổ sung ở Sprint 3.</p>
+            
           </>
         )}
 

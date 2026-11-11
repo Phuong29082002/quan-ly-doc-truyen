@@ -9,6 +9,7 @@ import androidx.navigation.navArgument
 import com.huflit.quanlydoctruyen.ui.screens.HomeScreen
 import com.huflit.quanlydoctruyen.ui.screens.LoginScreen
 import com.huflit.quanlydoctruyen.ui.screens.ProfileScreen
+import com.huflit.quanlydoctruyen.ui.screens.PlansScreen
 import com.huflit.quanlydoctruyen.ui.screens.ReadChapterScreen
 import com.huflit.quanlydoctruyen.ui.screens.RegisterScreen
 import com.huflit.quanlydoctruyen.ui.screens.StoryDetailScreen
@@ -24,20 +25,24 @@ fun AppNavigation() {
             HomeScreen(
                 onOpenStory = { id -> nav.navigate("story/$id") },
                 onLogin = { nav.navigate("login") },
-                onProfile = { nav.navigate("profile") }
+                onProfile = { nav.navigate("profile") },
+                onContinueReading = { id, chapter -> nav.navigate("story/$id/chapter/$chapter") }
             )
         }
 
         composable("profile") {
-            ProfileScreen(onBack = { nav.popBackStack() })
+            ProfileScreen(onBack = { nav.popBackStack() }, onPlans = { nav.navigate("plans") })
         }
+
+        composable("plans") { PlansScreen(onBack = { nav.popBackStack() }) }
 
         composable("story/{id}", arguments = listOf(navArgument("id") { type = NavType.IntType })) { entry ->
             val id = entry.arguments?.getInt("id") ?: 0
             StoryDetailScreen(
                 storyId = id,
                 onRead = { number -> nav.navigate("story/$id/chapter/$number") },
-                onBack = { nav.popBackStack() }
+                onBack = { nav.popBackStack() },
+                onPlans = { nav.navigate("plans") }
             )
         }
 

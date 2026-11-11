@@ -58,7 +58,7 @@ import kotlin.coroutines.cancellation.CancellationException
 // PB04: xem, cập nhật hồ sơ và đổi mật khẩu
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileScreen(onBack: () -> Unit) {
+fun ProfileScreen(onBack: () -> Unit, onPlans: () -> Unit) {
     val user = SessionManager.user
     val scope = rememberCoroutineScope()
 
@@ -229,6 +229,9 @@ fun ProfileScreen(onBack: () -> Unit) {
             Button(onClick = { changePassword() }, enabled = !savingPass, modifier = Modifier.padding(top = 8.dp)) {
                 Text(if (savingPass) "Đang đổi..." else "Đổi mật khẩu")
             }
+
+            SectionTitle("Dịch vụ đọc truyện")
+            Button(onClick = onPlans, modifier = Modifier.fillMaxWidth()) { Text("Gói đọc, truyện đã mua và lịch sử thanh toán") }
 
             Spacer(Modifier.height(28.dp))
             OutlinedButton(onClick = { SessionManager.logout() }, modifier = Modifier.fillMaxWidth()) {

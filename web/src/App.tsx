@@ -17,6 +17,10 @@ import AdminPackagesPage from "./pages/admin/AdminPackagesPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import PricingPage from "./pages/PricingPage";
 import ProfilePage from "./pages/ProfilePage";
+import PaymentHistoryPage from "./pages/PaymentHistoryPage";
+import PaymentPage from "./pages/PaymentPage";
+import ReadingListPage from "./pages/ReadingListPage";
+import AdminReconciliationPage from "./pages/admin/AdminReconciliationPage";
 
 export default function App() {
   return (
@@ -30,7 +34,10 @@ export default function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/goi-doc" element={<PricingPage />} />
+            <Route path="/thanh-toan" element={<RequireAuth><PaymentPage /></RequireAuth>} />
             <Route path="/tai-khoan" element={<RequireAuth><ProfilePage /></RequireAuth>} />
+            <Route path="/tai-khoan/thanh-toan" element={<RequireAuth><PaymentHistoryPage /></RequireAuth>} />
+            <Route path="/dang-doc" element={<RequireAuth><ReadingListPage /></RequireAuth>} />
 
             <Route path="/admin" element={<RequireAdmin><AdminPage /></RequireAdmin>}>
               <Route index element={<Navigate to="truyen" replace />} />
@@ -41,6 +48,7 @@ export default function App() {
               <Route path="truyen/:id/chuong/moi" element={<AdminChapterFormPage />} />
               <Route path="chuong/:chapterId" element={<AdminChapterFormPage />} />
               <Route path="goi-doc" element={<AdminPackagesPage />} />
+              <Route path="doi-soat" element={<AdminReconciliationPage />} />
             </Route>
 
             <Route path="*" element={<NotFoundPage />} />

@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import com.google.gson.Gson
 import java.time.Instant
@@ -29,6 +30,11 @@ object SessionManager {
     var token: String? = null
         private set
 
+    var readingProgressVersion by mutableIntStateOf(0)
+        private set
+
+    fun markReadingProgressSaved() { readingProgressVersion++ }
+
     val isAdmin: Boolean get() = user?.role == "Admin"
 
     fun init(context: Context) {
@@ -38,8 +44,14 @@ object SessionManager {
         val expires = prefs.getString(KEY_EXPIRES, null)
 
         if (savedToken != null && savedUser != null && expires != null && !isExpired(expires)) {
-            token = savedToken
-            user = gson.fromJson(savedUser, UserDto::class.java)
+            val restored = gson.fromJson(savedUser, UserDto::class.java)
+            if (restored.role == "Admin") {
+                // Mobile không dành cho Admin: xóa phiên đã lưu từ trước
+                logout()
+            } else {
+                token = savedToken
+                user = restored
+            }
         } else {
             logout()
         }

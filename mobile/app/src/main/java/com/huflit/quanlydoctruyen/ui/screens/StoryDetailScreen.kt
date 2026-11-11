@@ -8,12 +8,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -22,9 +25,12 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -33,11 +39,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.huflit.quanlydoctruyen.data.ApiClient
 import com.huflit.quanlydoctruyen.data.PackageItem
+import com.huflit.quanlydoctruyen.data.CheckoutRequest
 import com.huflit.quanlydoctruyen.data.SessionManager
 import com.huflit.quanlydoctruyen.data.StoryDetail
 import com.huflit.quanlydoctruyen.data.UiState
 import com.huflit.quanlydoctruyen.data.formatVnd
 import com.huflit.quanlydoctruyen.data.load
+import com.huflit.quanlydoctruyen.data.toMessage
 import com.huflit.quanlydoctruyen.ui.components.Badge
 import com.huflit.quanlydoctruyen.ui.components.CoverImage
 import com.huflit.quanlydoctruyen.ui.components.ErrorBox
@@ -47,7 +55,7 @@ import com.huflit.quanlydoctruyen.ui.components.StatusBadge
 // PB13: thông tin truyện + danh sách chương kèm trạng thái truy cập
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun StoryDetailScreen(storyId: Int, onRead: (Int) -> Unit, onBack: () -> Unit) {
+fun StoryDetailScreen(storyId: Int, onRead: (Int) -> Unit, onBack: () -> Unit, onPlans: () -> Unit) {
     var retry by remember { mutableIntStateOf(0) }
     // Tải lại khi đăng nhập/đăng xuất để cập nhật nhãn "Đã mở khóa"
     val state by produceState<UiState<StoryDetail>>(UiState.Loading, storyId, retry, SessionManager.user?.id) {
@@ -66,13 +74,17 @@ fun StoryDetailScreen(storyId: Int, onRead: (Int) -> Unit, onBack: () -> Unit) {
         when (val s = state) {
             is UiState.Loading -> LoadingBox(Modifier.padding(padding))
             is UiState.Error -> ErrorBox(s.message, Modifier.padding(padding), onRetry = { retry++ })
-            is UiState.Success -> StoryDetailContent(s.data, onRead, Modifier.padding(padding))
+            is UiState.Success -> StoryDetailContent(s.data, onRead, onPlans, { retry++ }, Modifier.padding(padding))
         }
     }
 }
 
 @Composable
-private fun StoryDetailContent(story: StoryDetail, onRead: (Int) -> Unit, modifier: Modifier) {
+private fun StoryDetailContent(story: StoryDetail, onRead: (Int) -> Unit, onPlans: () -> Unit, onRefresh: () -> Unit, modifier: Modifier) {
+    val scope = rememberCoroutineScope()
+    var paymentMessage by remember { mutableStateOf("") }
+    var paying by remember { mutableStateOf(false) }
+    var showStoryQr by remember { mutableStateOf(false) }
     val published = story.chapters.filter { it.isPublished }
 
     // PB18: gói đọc đang bán áp dụng cho truyện này (admin đổi trên web thì hiện ở đây)
@@ -121,6 +133,37 @@ private fun StoryDetailContent(story: StoryDetail, onRead: (Int) -> Unit, modifi
                         modifier = Modifier.padding(vertical = 8.dp)
                     )
                 }
+                if (story.accessType != "Free" && !story.hasFullAccess && SessionManager.user != null && story.price > 0) {
+                    Button(onClick = { showStoryQr = true }, enabled = !paying, modifier = Modifier.fillMaxWidth()) {
+                        Text("Mua quyền đọc vĩnh viễn · ${formatVnd(story.price)}")
+                    }
+                    if (showStoryQr) {
+                        Card(Modifier.fillMaxWidth().padding(top = 10.dp)) {
+                            Column(Modifier.fillMaxWidth().padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("THANH TOÁN QR GIẢ LẬP", fontWeight = FontWeight.Bold)
+                                Text("Người mua: ${SessionManager.user?.displayName} · ${SessionManager.user?.email}")
+                                Text(formatVnd(story.price), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                                DemoQrCode(Modifier.padding(10.dp).size(160.dp))
+                                Text("QR minh họa, không chuyển tiền thật.", style = MaterialTheme.typography.bodySmall)
+                                Button(onClick = {
+                                    scope.launch {
+                                        paying = true
+                                        try {
+                                            paymentMessage = ApiClient.api.checkout(CheckoutRequest("Story", story.id)).message
+                                            onRefresh()
+                                        } catch (e: Exception) {
+                                            paymentMessage = e.toMessage("Thanh toán thất bại")
+                                        }
+                                        showStoryQr = false
+                                        paying = false
+                                    }
+                                }, enabled = !paying, modifier = Modifier.fillMaxWidth()) { Text(if (paying) "Đang xử lý..." else "Thanh toán") }
+                                TextButton(onClick = { showStoryQr = false }) { Text("Hủy") }
+                            }
+                        }
+                    }
+                    if (paymentMessage.isNotBlank()) Text(paymentMessage, color = MaterialTheme.colorScheme.primary)
+                }
                 if (story.accessType != "Free" && !story.hasFullAccess && applicable.isNotEmpty()) {
                     Text(
                         "Gói đọc áp dụng",
@@ -129,14 +172,11 @@ private fun StoryDetailContent(story: StoryDetail, onRead: (Int) -> Unit, modifi
                         modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
                     )
                     applicable.forEach { p ->
-                        val scope = if (p.scope == "All") "Tất cả truyện" else "Một số truyện"
-                        Text("${p.name}: ${formatVnd(p.price)} / ${p.durationDays} ngày ($scope)", style = MaterialTheme.typography.bodyMedium)
+                        val packageScope = if (p.scope == "All") "Tất cả truyện" else "Một số truyện"
+                        Text("${p.name}: ${formatVnd(p.price)} / ${p.durationDays} ngày ($packageScope)", style = MaterialTheme.typography.bodyMedium)
+                        if (SessionManager.user != null) OutlinedButton(onClick = onPlans, modifier = Modifier.fillMaxWidth()) { Text("Xem gói và phương thức đăng ký") }
                     }
-                    Text(
-                        "Chức năng đăng ký gói sẽ được bổ sung ở bản cập nhật tiếp theo.",
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
+                    if (paymentMessage.isNotBlank()) Text(paymentMessage, color = MaterialTheme.colorScheme.primary)
                 }
                 Text(
                     "Danh sách chương",

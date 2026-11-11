@@ -1,0 +1,12 @@
+import { useEffect, useState } from "react";
+import { paymentApi } from "../../api/payments";
+import { getErrorMessage } from "../../api/client";
+import { formatDateTime, formatPrice } from "../../utils/format";
+type Item = { transactionId: number; userId: number; username: string; type: string; packageId: number | null; storyId: number | null; amount: number; paidAt: string };
+export default function AdminReconciliationPage() {
+  const [items,setItems]=useState<Item[]>(); const [error,setError]=useState(""); const [busy,setBusy]=useState<number|null>(null); const [message,setMessage]=useState("");
+  async function load(){try{setItems(await paymentApi.reconciliation());setError("");}catch(e){setError(getErrorMessage(e));}}
+  useEffect(()=>{load();},[]);
+  async function grant(id:number){setBusy(id);setMessage("");try{const r=await paymentApi.reconcile(id);setMessage(r.message);await load();}catch(e){setError(getErrorMessage(e));}finally{setBusy(null);}}
+  return <div><h1 className="mb-2 text-xl font-bold">Đối soát giao dịch</h1><p className="mb-4 text-sm text-gray-600">Danh sách giao dịch đã thanh toán thành công nhưng chưa có bản ghi cấp quyền tương ứng.</p>{message&&<p className="mb-3 text-sm text-green-700">{message}</p>}{error&&<p className="mb-3 text-sm text-red-600">{error}</p>}{!items&&!error&&<p>Đang tải...</p>}{items?.length===0&&<p className="rounded border bg-white p-4 text-sm text-gray-500">Không có giao dịch bị lệch.</p>}{items&&items.length>0&&<div className="overflow-x-auto rounded border bg-white"><table className="w-full text-left text-sm"><thead><tr className="border-b"><th className="p-3">Mã GD</th><th className="p-3">Người dùng</th><th className="p-3">Loại</th><th className="p-3">Số tiền</th><th className="p-3">Thanh toán lúc</th><th className="p-3"></th></tr></thead><tbody>{items.map(x=><tr key={x.transactionId} className="border-b"><td className="p-3">#{x.transactionId}</td><td className="p-3">{x.username}</td><td className="p-3">{x.type==="Package"?`Gói #${x.packageId}`:`Truyện #${x.storyId}`}</td><td className="p-3">{formatPrice(x.amount)}</td><td className="p-3">{formatDateTime(x.paidAt)}</td><td className="p-3"><button disabled={busy!==null} onClick={()=>grant(x.transactionId)} className="rounded bg-blue-600 px-3 py-1.5 text-white disabled:opacity-50">{busy===x.transactionId?"Đang cấp...":"Cấp lại quyền"}</button></td></tr>)}</tbody></table></div>}</div>;
+}

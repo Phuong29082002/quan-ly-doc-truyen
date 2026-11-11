@@ -13,6 +13,7 @@ export default function AdminPage() {
           <NavLink to="/admin/truyen" className={linkClass}>Truyện & chương</NavLink>
           <NavLink to="/admin/the-loai" className={linkClass}>Thể loại</NavLink>
           <NavLink to="/admin/goi-doc" className={linkClass}>Gói đọc</NavLink>
+          <NavLink to="/admin/doi-soat" className={linkClass}>Đối soát giao dịch</NavLink>
         </nav>
       </aside>
       <section className="min-w-0 flex-1">

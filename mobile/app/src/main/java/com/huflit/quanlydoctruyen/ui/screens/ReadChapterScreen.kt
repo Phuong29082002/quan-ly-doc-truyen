@@ -20,6 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -41,6 +42,7 @@ import com.huflit.quanlydoctruyen.data.SessionManager
 import com.huflit.quanlydoctruyen.data.UiState
 import com.huflit.quanlydoctruyen.data.formatVnd
 import com.huflit.quanlydoctruyen.data.load
+import com.huflit.quanlydoctruyen.data.ReadingProgressRequest
 import com.huflit.quanlydoctruyen.ui.components.ChapterBody
 import com.huflit.quanlydoctruyen.ui.components.ErrorBox
 import com.huflit.quanlydoctruyen.ui.components.LoadingBox
@@ -80,6 +82,12 @@ fun ReadChapterScreen(storyId: Int, number: Int, onGoTo: (Int) -> Unit, onLogin:
                     else ErrorBox(s.message, onRetry = if (s.code == 403) null else ({ retry++ }))
                 is UiState.Success -> {
                     val c = s.data
+                    LaunchedEffect(c.id, SessionManager.user?.id) {
+                        if (SessionManager.user != null) runCatching {
+                            ApiClient.api.saveReadingProgress(ReadingProgressRequest(c.storyId, c.id))
+                            SessionManager.markReadingProgressSaved()
+                        }
+                    }
                     Column(Modifier.verticalScroll(rememberScrollState(), true).padding(16.dp)) {
                         Text(
                             "Chương ${c.number}: ${c.title}",

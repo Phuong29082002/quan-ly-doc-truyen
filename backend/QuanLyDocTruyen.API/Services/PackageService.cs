@@ -85,7 +85,7 @@ public class PackageService(AppDbContext db) : IPackageService
             .Select(p => new
             {
                 p.Id, p.Name, p.Price, p.DurationDays, p.Scope, p.IsActive, p.CreatedAt,
-                ActiveUsers = db.UserPackages.Where(up => up.PackageId == p.Id && up.EndAt > now)
+                ActiveUsers = db.UserPackages.Where(up => up.PackageId == p.Id && !up.IsPaused && up.StartAt <= now && up.EndAt > now)
                     .Select(up => up.UserId).Distinct().Count(),
                 Stories = p.PackageStories.OrderBy(ps => ps.Story.Title)
                     .Select(ps => new PackageStoryRefDto(ps.StoryId, ps.Story.Title)).ToList()

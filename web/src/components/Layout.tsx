@@ -21,7 +21,8 @@ export default function Layout() {
           <NavLink to="/" className="text-lg font-bold text-blue-600">Đọc Truyện</NavLink>
           <nav className="flex gap-4 text-sm">
             <NavLink to="/" end className={linkClass}>Trang chủ</NavLink>
-            <NavLink to="/goi-doc" className={linkClass}>Gói đọc</NavLink>
+            {!isAdmin && <NavLink to="/goi-doc" className={linkClass}>Gói đọc</NavLink>}
+            {user && <NavLink to="/dang-doc" className={linkClass}>Đang đọc</NavLink>}
             {/* PB03: chỉ Admin mới thấy menu Quản trị */}
             {isAdmin && <NavLink to="/admin" className={linkClass}>Quản trị</NavLink>}
           </nav>
@@ -29,6 +30,7 @@ export default function Layout() {
           <div className="ml-auto flex items-center gap-3 text-sm">
             {user ? (
               <>
+                {!isAdmin && <NavLink to="/tai-khoan/thanh-toan" className="text-gray-600 hover:text-blue-600">Thanh toán</NavLink>}
                 <NavLink to="/tai-khoan" className="flex items-center gap-2 text-gray-700 hover:text-blue-600" title="Tài khoản của tôi">
                   {user.avatarUrl ? (
                     <img src={assetUrl(user.avatarUrl)!} alt="" className="h-7 w-7 rounded-full object-cover" />

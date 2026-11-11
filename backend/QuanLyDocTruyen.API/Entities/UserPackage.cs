@@ -11,4 +11,6 @@ public class UserPackage
     public Transaction Transaction { get; set; } = null!;
     public DateTime StartAt { get; set; }
     public DateTime EndAt { get; set; }
+    public bool IsPaused { get; set; }
+    public int RemainingDays { get; set; }
 }
