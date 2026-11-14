@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { NavLink, Outlet } from "react-router";
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
@@ -20,7 +21,9 @@ export default function AdminPage() {
         </nav>
       </aside>
       <section className="min-w-0 flex-1">
-        <Outlet />
+        <Suspense fallback={<p className="py-12 text-center text-gray-500">Đang tải…</p>}>
+          <Outlet />
+        </Suspense>
       </section>
     </div>
   );

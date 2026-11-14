@@ -1,0 +1,48 @@
+# PB56: chạy toàn bộ hệ thống bằng một lệnh: docker compose up --build
+# Web: http://localhost:8080   API: http://localhost:5086   SQL Server: localhost,14333 (sa / MAT_KHAU_SA)
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MAT_KHAU_SA:-QuanLyDocTruyen@2026}
+    ports:
+      - "14333:1433"
+    volumes:
+      - sqldata:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$${MSSQL_SA_PASSWORD}\" -C -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: QuanLyDocTruyen.API/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Default: "Server=db;Database=QuanLyDocTruyen;User Id=sa;Password=${MAT_KHAU_SA:-QuanLyDocTruyen@2026};TrustServerCertificate=True"
+      Cors__Origins__0: http://localhost:8080
+      Payment__WebBaseUrl: http://localhost:8080
+    ports:
+      - "5086:8080"
+    volumes:
+      - uploads:/app/wwwroot/uploads
+
+  web:
+    build:
+      context: ./web
+      args:
+        VITE_API_URL: http://localhost:5086
+    depends_on:
+      - api
+    ports:
+      - "8080:80"
+
+volumes:
+  sqldata:
+  uploads:

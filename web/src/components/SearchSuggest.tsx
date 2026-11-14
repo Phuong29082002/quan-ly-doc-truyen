@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { useNavigate } from "react-router";
 import { assetUrl } from "../api/client";
 import { suggestApi, type StorySuggestion } from "../api/community";
@@ -6,6 +6,8 @@ import { suggestApi, type StorySuggestion } from "../api/community";
 // PB51: ô tìm kiếm có gợi ý tức thì, gõ không dấu vẫn ra ("vu an" -> "Vụ Án Phòng Số 7")
 export default function SearchSuggest({ className = "" }: { className?: string }) {
   const navigate = useNavigate();
+  const inputId = useId();
+  const listId = `${inputId}-list`;
   const [value, setValue] = useState("");
   const [result, setResult] = useState<{ q: string; items: StorySuggestion[] }>({ q: "", items: [] });
   const [open, setOpen] = useState(false);
@@ -66,9 +68,14 @@ export default function SearchSuggest({ className = "" }: { className?: string }
 
   return (
     <form ref={boxRef} onSubmit={submit} role="search" className={`relative ${className}`}>
-      <label htmlFor="site-search" className="sr-only">Tìm truyện</label>
+      <label htmlFor={inputId} className="sr-only">Tìm truyện</label>
       <input
-        id="site-search"
+        id={inputId}
+        role="combobox"
+        aria-expanded={open && items.length > 0}
+        aria-controls={listId}
+        aria-autocomplete="list"
+        aria-activedescendant={active >= 0 ? `${listId}-${active}` : undefined}
         value={value}
         onChange={(e) => {
           setValue(e.target.value);
@@ -86,10 +93,13 @@ export default function SearchSuggest({ className = "" }: { className?: string }
       </svg>
 
       {open && items.length > 0 && (
-        <ul className="absolute left-0 right-0 top-full z-40 mt-2 overflow-hidden rounded-xl border bg-white py-1 text-gray-900 shadow-xl">
+        <ul id={listId} role="listbox" aria-label="Gợi ý truyện" className="absolute left-0 right-0 top-full z-40 mt-2 overflow-hidden rounded-xl border bg-white py-1 text-gray-900 shadow-xl">
           {items.map((s, i) => (
-            <li key={s.id}>
+            <li key={s.id} role="presentation">
               <button
+                id={`${listId}-${i}`}
+                role="option"
+                aria-selected={i === active}
                 type="button"
                 onMouseEnter={() => setActive(i)}
                 onClick={() => go(`/truyen/${s.id}`)}
@@ -107,7 +117,7 @@ export default function SearchSuggest({ className = "" }: { className?: string }
               </button>
             </li>
           ))}
-          <li className="border-t">
+          <li className="border-t" role="presentation">
             <button type="submit" className="w-full px-3 py-2 text-left text-sm text-blue-700 hover:bg-blue-50">
               Xem tất cả kết quả cho “{q}”
             </button>

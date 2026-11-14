@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/backend/">
     <Project Path="backend/QuanLyDocTruyen.API/QuanLyDocTruyen.API.csproj" />
+    <Project Path="backend/QuanLyDocTruyen.Tests/QuanLyDocTruyen.Tests.csproj" />
   </Folder>
 </Solution>

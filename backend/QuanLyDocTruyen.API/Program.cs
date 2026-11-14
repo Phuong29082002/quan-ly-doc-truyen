@@ -87,8 +87,12 @@ builder.Services.AddOpenApi();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
+// Địa chỉ trang Web được gọi API (thêm địa chỉ khác qua cấu hình Cors:Origins, ví dụ khi chạy bằng Docker)
+var corsOrigins = builder.Configuration.GetSection("Cors:Origins").Get<string[]>() is { Length: > 0 } configured
+    ? configured
+    : ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:4173"];
 builder.Services.AddCors(o => o.AddPolicy("Frontend", p => p
-    .WithOrigins("http://localhost:5173", "http://127.0.0.1:5173")
+    .WithOrigins(corsOrigins)
     .AllowAnyHeader()
     .AllowAnyMethod()
     .AllowCredentials()
