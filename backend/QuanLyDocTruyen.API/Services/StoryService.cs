@@ -123,7 +123,8 @@ public class StoryService(AppDbContext db, IWebHostEnvironment env) : IStoryServ
         return new StoryDetailDto(
             story.Id, story.Title, story.Author, story.Description, story.CoverUrl,
             story.Status, story.AccessType, story.Price, story.FreeChapterCount, story.ViewCount,
-            story.CreatedAt, story.UpdatedAt, genres, chapterDtos, hasFullAccess, accessSource);
+            story.CreatedAt, story.UpdatedAt, genres, chapterDtos, hasFullAccess, accessSource,
+            story.RatingAverage, story.RatingCount);
     }
 
     // PB06: tạo truyện, gán nhiều thể loại

@@ -22,6 +22,12 @@ import BankTransferPage from "./pages/BankTransferPage";
 import PaymentResultPage from "./pages/PaymentResultPage";
 import ReadingListPage from "./pages/ReadingListPage";
 import AdminTransactionsPage from "./pages/admin/AdminTransactionsPage";
+import AdminModerationPage from "./pages/admin/AdminModerationPage";
+import AdminUsersPage from "./pages/admin/AdminUsersPage";
+import AdminStatsPage from "./pages/admin/AdminStatsPage";
+import RankingPage from "./pages/RankingPage";
+import FollowingPage from "./pages/FollowingPage";
+import NotificationsPage from "./pages/NotificationsPage";
 
 export default function App() {
   return (
@@ -37,6 +43,9 @@ export default function App() {
             <Route path="/goi-doc" element={<PricingPage />} />
             <Route path="/tai-khoan" element={<RequireAuth><ProfilePage /></RequireAuth>} />
             <Route path="/dang-doc" element={<RequireAuth><ReadingListPage /></RequireAuth>} />
+            <Route path="/xep-hang" element={<RankingPage />} />
+            <Route path="/theo-doi" element={<RequireAuth><FollowingPage /></RequireAuth>} />
+            <Route path="/thong-bao" element={<RequireAuth><NotificationsPage /></RequireAuth>} />
             <Route path="/thanh-toan/gia-lap/:id" element={<RequireAuth><MockPaymentPage /></RequireAuth>} />
             <Route path="/thanh-toan/chuyen-khoan/:id" element={<RequireAuth><BankTransferPage /></RequireAuth>} />
             <Route path="/thanh-toan/ket-qua/:id" element={<RequireAuth><PaymentResultPage /></RequireAuth>} />
@@ -51,6 +60,9 @@ export default function App() {
               <Route path="chuong/:chapterId" element={<AdminChapterFormPage />} />
               <Route path="goi-doc" element={<AdminPackagesPage />} />
               <Route path="giao-dich" element={<AdminTransactionsPage />} />
+              <Route path="kiem-duyet" element={<AdminModerationPage />} />
+              <Route path="thanh-vien" element={<AdminUsersPage />} />
+              <Route path="thong-ke" element={<AdminStatsPage />} />
             </Route>
 
             <Route path="*" element={<NotFoundPage />} />

@@ -1,5 +1,48 @@
 @import "tailwindcss";
 
+/*
+  PB44: nhận diện "Đèn đọc khuya"
+  - Mực (ink): nền đầu trang, chữ tiêu đề        #1d2342
+  - Ngọc (jade): nút, liên kết, trạng thái chọn   thay cho thang màu blue mặc định
+  - Đèn (lamp): điểm nhấn gói đọc / xếp hạng     #e9b44c
+  - Giấy: nền trang xám xanh rất nhạt, khung trắng
+  Chữ giao diện: Be Vietnam Pro (thiết kế cho tiếng Việt); tên truyện + nội dung đọc: Lora
+*/
+@theme {
+  --font-sans: "Be Vietnam Pro", ui-sans-serif, system-ui, sans-serif;
+  --font-story: "Lora", Georgia, "Times New Roman", serif;
+
+  --color-ink: #1d2342;
+  --color-ink-soft: #2b3359;
+  --color-lamp: #e9b44c;
+  --color-lamp-soft: #fbf0d6;
+  --color-paper: #f3f4f8;
+
+  /* Thang màu ngọc thay cho blue: mọi trang (kể cả trang quản trị) đổi màu đồng bộ */
+  --color-blue-50: #ecf8f6;
+  --color-blue-100: #d0efea;
+  --color-blue-200: #a3ded5;
+  --color-blue-300: #6cc6b9;
+  --color-blue-400: #36a99a;
+  --color-blue-500: #168f80;
+  --color-blue-600: #0e7a6d;
+  --color-blue-700: #0f6259;
+  --color-blue-800: #114f49;
+  --color-blue-900: #12423d;
+
+  /* Xám ngả xanh mực cho hợp tông */
+  --color-gray-50: #f6f7fa;
+  --color-gray-100: #eceef4;
+  --color-gray-200: #dde1ea;
+  --color-gray-300: #c3c9d6;
+  --color-gray-400: #9199ad;
+  --color-gray-500: #6b7185;
+  --color-gray-600: #4f5569;
+  --color-gray-700: #3b4054;
+  --color-gray-800: #262a3b;
+  --color-gray-900: #1b2030;
+}
+
 /* Tailwind v4 mặc định viền màu đen (currentColor) -> đổi về xám nhạt như v3 */
 @layer base {
   *,
@@ -8,5 +51,40 @@
   ::backdrop,
   ::file-selector-button {
     border-color: var(--color-gray-200, currentColor);
+  }
+
+  body {
+    @apply bg-paper text-gray-900 antialiased;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-blue-500);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, ::before, ::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* Bìa truyện dạng sách: gáy sách tối bên trái + bóng đổ nhẹ */
+  .book {
+    position: relative;
+    border-radius: 3px 6px 6px 3px;
+    box-shadow: 0 1px 2px rgb(29 35 66 / 0.25), 0 8px 18px -10px rgb(29 35 66 / 0.55);
+    overflow: hidden;
+  }
+  .book::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 7%;
+    background: linear-gradient(90deg, rgb(0 0 0 / 0.28), rgb(255 255 255 / 0.12) 60%, transparent);
+    pointer-events: none;
+    z-index: 1;
   }
 }

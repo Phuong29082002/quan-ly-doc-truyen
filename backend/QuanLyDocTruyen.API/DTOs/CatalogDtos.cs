@@ -78,7 +78,9 @@ public record StoryDetailDto(
     List<GenreRefDto> Genres,
     List<ChapterListItemDto> Chapters,
     bool HasFullAccess,
-    string? AccessSource);
+    string? AccessSource,
+    double RatingAverage = 0,
+    int RatingCount = 0);
 
 public class StoryRequest
 {

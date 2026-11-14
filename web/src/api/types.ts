@@ -9,6 +9,9 @@ export interface User {
   displayName: string;
   role: Role;
   avatarUrl?: string | null;
+  /** Active | Restricted (không bình luận được) | Suspended */
+  status?: "Active" | "Restricted" | "Suspended";
+  statusReason?: string | null;
 }
 
 export interface AuthResponse {
@@ -58,6 +61,11 @@ export interface StoryListItem {
   viewCount: number;
   createdAt: string;
   updatedAt: string;
+  latestChapterNumber?: number | null;
+  latestChapterTitle?: string | null;
+  description?: string | null;
+  ratingAverage?: number;
+  ratingCount?: number;
 }
 
 export interface ChapterListItem {
@@ -91,6 +99,8 @@ export interface StoryDetail {
   hasFullAccess: boolean;
   /** "Admin" | "Package" | "Purchase" | null */
   accessSource: string | null;
+  ratingAverage?: number;
+  ratingCount?: number;
 }
 
 export interface StoryRequest {

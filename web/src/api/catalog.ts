@@ -11,7 +11,7 @@ import type {
   StoryStatus,
 } from "./types";
 
-export type StorySort = "updated" | "newest" | "views";
+export type StorySort = "updated" | "newest" | "views" | "rating";
 
 export interface StorySearchParams {
   keyword?: string;
