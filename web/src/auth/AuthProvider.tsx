@@ -29,6 +29,14 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("auth:expired", logout);
   }, [logout]);
 
+  // Older saved sessions may not contain avatarUrl; refresh the profile once after loading them.
+  useEffect(() => {
+    if (!user || user.avatarUrl !== undefined) return;
+    let ignore = false;
+    authApi.me().then((updated) => !ignore && updateUser(updated)).catch(() => {});
+    return () => { ignore = true; };
+  }, [user, updateUser]);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,

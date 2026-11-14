@@ -58,6 +58,7 @@ export const storyApi = {
 export const chapterApi = {
   get: (id: number) => api.get<ChapterAdmin>(`/api/chapters/${id}`).then((r) => r.data),
   update: (id: number, data: ChapterRequest) => api.put<ChapterAdmin>(`/api/chapters/${id}`, data).then((r) => r.data),
+  remove: (id: number) => api.delete(`/api/chapters/${id}`),
 
   // PB43: upload ảnh minh họa, trả về đường dẫn để chèn vào nội dung
   uploadImage: (file: File) => {

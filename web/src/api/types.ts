@@ -8,6 +8,7 @@ export interface User {
   email: string;
   displayName: string;
   role: Role;
+  avatarUrl?: string | null;
 }
 
 export interface AuthResponse {

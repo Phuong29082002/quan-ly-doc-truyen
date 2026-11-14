@@ -20,9 +20,11 @@ export default function HomePage() {
   const status = (params.get("tinhtrang") as StoryStatus | null) ?? undefined;
   const sort = (params.get("sapxep") as StorySort | null) ?? "updated";
   const page = Number(params.get("trang") ?? 1);
+  const isHomeView = !keyword && !genreId && !status && !params.has("sapxep") && page === 1;
 
   const [genres, setGenres] = useState<Genre[]>([]);
   const [result, setResult] = useState<{ key: string; data?: PagedResult<StoryListItem>; error?: string }>();
+  const [homeLists, setHomeLists] = useState<{ key: string; lists?: { sort: StorySort; data: PagedResult<StoryListItem> }[]; error?: string }>();
   const key = params.toString();
 
   useEffect(() => {
@@ -30,6 +32,7 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
+    if (isHomeView) return;
     let ignore = false;
     storyApi
       .search({ keyword: keyword || undefined, genreId, status, sort, page, pageSize: 12 })
@@ -40,7 +43,16 @@ export default function HomePage() {
     };
   }, [key, keyword, genreId, status, sort, page]);
 
-  const loading = result?.key !== key;
+  useEffect(() => {
+    if (!isHomeView) return;
+    let ignore = false;
+    Promise.all(SORTS.map(async ({ value }) => ({ sort: value, data: await storyApi.search({ sort: value, pageSize: 6 }) })))
+      .then((lists) => !ignore && setHomeLists({ key, lists }))
+      .catch((err) => !ignore && setHomeLists({ key, error: getErrorMessage(err, "Không tải được danh sách truyện") }));
+    return () => { ignore = true; };
+  }, [key, isHomeView]);
+
+  const loading = isHomeView ? homeLists?.key !== key : result?.key !== key;
 
   function update(changes: Record<string, string | undefined>) {
     const next = new URLSearchParams(params);
@@ -53,7 +65,7 @@ export default function HomePage() {
     <div>
       <SearchBox key={keyword} initial={keyword} onSearch={(q) => update({ q })} />
 
-      <div className="mb-4 flex flex-wrap items-center gap-2">
+      {!isHomeView && <div className="mb-4 flex flex-wrap items-center gap-2">
         {SORTS.map((s) => (
           <button
             key={s.value}
@@ -86,7 +98,7 @@ export default function HomePage() {
           <option value="Ongoing">Đang ra</option>
           <option value="Completed">Hoàn thành</option>
         </select>
-      </div>
+      </div>}
 
       {keyword && (
         <p className="mb-3 text-sm text-gray-600">
@@ -96,12 +108,19 @@ export default function HomePage() {
       )}
 
       {loading && <p className="py-12 text-center text-gray-500">Đang tải...</p>}
-      {!loading && result?.error && <p className="py-12 text-center text-red-600">{result.error}</p>}
-      {!loading && result?.data && result.data.items.length === 0 && (
+      {!loading && isHomeView && homeLists?.error && <p className="py-12 text-center text-red-600">{homeLists.error}</p>}
+      {!loading && isHomeView && homeLists?.lists && <div className="space-y-8">
+        {homeLists.lists.map(({ sort: listSort, data }) => <section key={listSort}>
+          <div className="mb-3 flex items-center justify-between"><h2 className="text-xl font-semibold">{SORTS.find((x) => x.value === listSort)?.label}</h2><button onClick={() => update({ sapxep: listSort })} className="text-sm text-blue-600 hover:underline">Xem tất cả</button></div>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">{data.items.map((s) => <StoryCard key={s.id} story={s} />)}</div>
+        </section>)}
+      </div>}
+      {!loading && !isHomeView && result?.error && <p className="py-12 text-center text-red-600">{result.error}</p>}
+      {!loading && !isHomeView && result?.data && result.data.items.length === 0 && (
         <p className="py-12 text-center text-gray-500">Không tìm thấy truyện phù hợp</p>
       )}
 
-      {!loading && result?.data && result.data.items.length > 0 && (
+      {!loading && !isHomeView && result?.data && result.data.items.length > 0 && (
         <>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
             {result.data.items.map((s) => (

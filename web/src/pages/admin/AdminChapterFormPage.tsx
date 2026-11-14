@@ -8,7 +8,7 @@ import ChapterContentView from "../../components/ChapterContentView";
 import { imageMarkup } from "../../utils/chapterContent";
 import { toLocalInput } from "../../utils/format";
 
-// PB08: thêm chương, PB09: sửa chương, PB10: hẹn giờ phát hành
+// PB08: thêm chương, PB09: sửa/xóa chương, PB10: hẹn giờ phát hành
 export default function AdminChapterFormPage() {
   const params = useParams();
   const chapterId = params.chapterId ? Number(params.chapterId) : null;

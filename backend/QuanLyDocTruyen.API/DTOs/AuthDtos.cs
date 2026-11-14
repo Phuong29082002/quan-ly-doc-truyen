@@ -30,7 +30,7 @@ public class LoginRequest
     public string Password { get; set; } = "";
 }
 
-public record UserDto(int Id, string Username, string Email, string DisplayName, string Role);
+public record UserDto(int Id, string Username, string Email, string DisplayName, string Role, string? AvatarUrl);
 
 public record AuthResponse(string Token, DateTime ExpiresAt, UserDto User);
 
