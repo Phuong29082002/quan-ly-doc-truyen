@@ -36,15 +36,20 @@ fun parseChapterContent(content: String): List<ContentBlock> =
         }
 
 @Composable
-fun ChapterBody(content: String, fontSize: Int) {
+fun ChapterBody(content: String, fontSize: Int, lineHeight: Float = 1.7f, activeBlock: Int? = null) {
     Column {
-        parseChapterContent(content).forEach { block ->
+        parseChapterContent(content).forEachIndexed { index, block ->
             when (block) {
+                // PB48: đoạn đang được đọc to được tô nền
                 is ContentBlock.Paragraph -> Text(
                     block.text,
                     fontSize = fontSize.sp,
-                    lineHeight = (fontSize * 1.7f).sp,
-                    modifier = Modifier.padding(vertical = 8.dp)
+                    lineHeight = (fontSize * lineHeight).sp,
+                    modifier = Modifier
+                        .padding(vertical = 4.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(if (activeBlock == index) Color(0x33E9B44C) else Color.Transparent)
+                        .padding(vertical = 4.dp)
                 )
 
                 is ContentBlock.Picture -> Column(Modifier.fillMaxWidth().padding(vertical = 12.dp)) {

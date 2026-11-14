@@ -26,6 +26,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import com.huflit.quanlydoctruyen.ui.components.Biometric
+import androidx.compose.material3.Switch
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -175,6 +177,9 @@ fun ProfileScreen(onBack: () -> Unit, onOpenLibrary: () -> Unit) {
         }
     }
 
+    var biometricOn by remember { mutableStateOf(SessionManager.biometricEnabled) }
+    var biometricMsg by remember { mutableStateOf<String?>(null) }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -233,6 +238,33 @@ fun ProfileScreen(onBack: () -> Unit, onOpenLibrary: () -> Unit) {
             Message(passMsg)
             Button(onClick = { changePassword() }, enabled = !savingPass, modifier = Modifier.padding(top = 8.dp)) {
                 Text(if (savingPass) "Đang đổi..." else "Đổi mật khẩu")
+            }
+
+            // PB53: mở app bằng vân tay
+            if (Biometric.isAvailable(context)) {
+                HorizontalDivider(Modifier.padding(vertical = 20.dp))
+                SectionTitle("Bảo mật")
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Mở app bằng vân tay", fontWeight = FontWeight.Medium)
+                        Text("Mỗi lần mở app cần chạm vân tay mới vào được tài khoản", style = MaterialTheme.typography.bodySmall)
+                    }
+                    Switch(checked = biometricOn, onCheckedChange = { on ->
+                        if (!on) {
+                            SessionManager.biometricEnabled = false
+                            biometricOn = false
+                        } else {
+                            // Xác thực một lần để chắc chắn vân tay hoạt động rồi mới bật
+                            Biometric.authenticate(
+                                context, "Bật mở khóa bằng vân tay", "Hủy",
+                                onSuccess = { SessionManager.biometricEnabled = true; biometricOn = true },
+                                onNegative = {},
+                                onError = { biometricMsg = it }
+                            )
+                        }
+                    })
+                }
+                biometricMsg?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
             }
 
             Spacer(Modifier.height(28.dp))

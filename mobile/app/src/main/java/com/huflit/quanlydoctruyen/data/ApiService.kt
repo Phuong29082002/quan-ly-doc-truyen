@@ -114,6 +114,69 @@ interface ApiService {
 
     @DELETE("api/me/reading/{storyId}")
     suspend fun removeReading(@Path("storyId") storyId: Int): Response<Unit>
+
+    // PB28: theo dõi truyện
+    @GET("api/stories/{storyId}/follow")
+    suspend fun followStatus(@Path("storyId") storyId: Int): FollowStatus
+
+    @POST("api/stories/{storyId}/follow")
+    suspend fun follow(@Path("storyId") storyId: Int): FollowStatus
+
+    @DELETE("api/stories/{storyId}/follow")
+    suspend fun unfollow(@Path("storyId") storyId: Int): FollowStatus
+
+    @GET("api/me/follows")
+    suspend fun myFollows(): List<FollowedStory>
+
+    // PB29: thông báo
+    @GET("api/me/notifications")
+    suspend fun notifications(): List<AppNotification>
+
+    @GET("api/me/notifications/unread-count")
+    suspend fun unreadCount(): UnreadCount
+
+    @POST("api/me/notifications/{id}/read")
+    suspend fun markRead(@Path("id") id: Int): Response<Unit>
+
+    @POST("api/me/notifications/read-all")
+    suspend fun markAllRead(): Response<Unit>
+
+    // PB30, PB31: thảo luận theo chương
+    @GET("api/chapters/{chapterId}/comments")
+    suspend fun comments(@Path("chapterId") chapterId: Int): List<ChapterComment>
+
+    @POST("api/chapters/{chapterId}/comments")
+    suspend fun postComment(@Path("chapterId") chapterId: Int, @Body body: CommentRequest): ChapterComment
+
+    @DELETE("api/comments/{id}")
+    suspend fun deleteComment(@Path("id") id: Int): Response<Unit>
+
+    @POST("api/comments/{id}/report")
+    suspend fun reportComment(@Path("id") id: Int, @Body body: ReportRequest): Response<Unit>
+
+    // PB49: đánh giá sao, bảng xếp hạng
+    @GET("api/stories/{storyId}/rating")
+    suspend fun rating(@Path("storyId") storyId: Int): RatingSummary
+
+    @PUT("api/stories/{storyId}/rating")
+    suspend fun rate(@Path("storyId") storyId: Int, @Body body: RatingRequest): RatingSummary
+
+    @DELETE("api/stories/{storyId}/rating")
+    suspend fun removeRating(@Path("storyId") storyId: Int): RatingSummary
+
+    @GET("api/rankings")
+    suspend fun rankings(
+        @Query("type") type: String = "views",
+        @Query("period") period: String = "week",
+        @Query("limit") limit: Int = 30
+    ): List<RankingItem>
+
+    // PB50: gợi ý truyện
+    @GET("api/recommendations")
+    suspend fun recommendations(@Query("limit") limit: Int = 10): List<Recommendation>
+
+    @GET("api/stories/{storyId}/similar")
+    suspend fun similar(@Path("storyId") storyId: Int, @Query("limit") limit: Int = 6): List<Recommendation>
 }
 
 object ApiClient {

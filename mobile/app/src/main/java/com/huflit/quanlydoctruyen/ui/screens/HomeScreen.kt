@@ -56,10 +56,11 @@ import com.huflit.quanlydoctruyen.ui.components.Avatar
 import com.huflit.quanlydoctruyen.ui.components.CoverImage
 import com.huflit.quanlydoctruyen.ui.components.ErrorBox
 import com.huflit.quanlydoctruyen.ui.components.StatusBadge
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
 
-private val SORTS = listOf("updated" to "Mới cập nhật", "newest" to "Mới phát hành", "views" to "Đọc nhiều")
+private val SORTS = listOf("updated" to "Mới cập nhật", "newest" to "Mới phát hành", "views" to "Đọc nhiều", "rating" to "Đánh giá cao")
 
 // PB11: tìm kiếm truyện, PB12: các danh sách gợi ý
 @OptIn(ExperimentalMaterial3Api::class)
@@ -70,7 +71,10 @@ fun HomeScreen(
     onProfile: () -> Unit,
     onOpenPackages: () -> Unit,
     onOpenReading: () -> Unit,
-    onContinueReading: (storyId: Int, chapter: Int) -> Unit
+    onContinueReading: (storyId: Int, chapter: Int) -> Unit,
+    onOpenNotifications: () -> Unit = {},
+    onOpenFollowing: () -> Unit = {},
+    onOpenRanking: () -> Unit = {}
 ) {
     var input by rememberSaveable { mutableStateOf("") }
     var keyword by rememberSaveable { mutableStateOf("") }
@@ -87,6 +91,19 @@ fun HomeScreen(
     var error by remember { mutableStateOf<String?>(null) }
     var reloadKey by remember { mutableIntStateOf(0) }
     val scope = rememberCoroutineScope()
+
+    // PB29: số thông báo chưa đọc, hỏi lại máy chủ mỗi 30 giây khi đang mở trang chủ
+    var unread by remember { mutableIntStateOf(0) }
+    LaunchedEffect(SessionManager.user?.id) {
+        if (SessionManager.user == null) {
+            unread = 0
+            return@LaunchedEffect
+        }
+        while (true) {
+            unread = runCatching { ApiClient.api.unreadCount().count }.getOrDefault(unread)
+            delay(30_000)
+        }
+    }
 
     // PB26, PB27: truyện đọc gần đây để đọc tiếp nhanh
     LaunchedEffect(SessionManager.user?.id) {
@@ -152,6 +169,10 @@ fun HomeScreen(
                 title = { Text("Đọc Truyện", fontWeight = FontWeight.Bold) },
                 actions = {
                     if (user != null) {
+                        // PB29: chuông thông báo
+                        TextButton(onClick = onOpenNotifications) {
+                            Text(if (unread > 0) "🔔 $unread" else "🔔")
+                        }
                         // PB04: bấm vào tên để mở trang tài khoản (có nút đăng xuất)
                         TextButton(onClick = onProfile) {
                             Avatar(user.avatarUrl, user.displayName, 28.dp)
@@ -178,10 +199,12 @@ fun HomeScreen(
 
             // PB27: truyện đang đọc, PB19: gói đọc
             Row(
-                Modifier.padding(horizontal = 16.dp),
+                Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 if (user != null) AssistChip(onClick = onOpenReading, label = { Text("📖 Đang đọc") })
+                if (user != null) AssistChip(onClick = onOpenFollowing, label = { Text("⭐ Theo dõi") })
+                AssistChip(onClick = onOpenRanking, label = { Text("🏆 Xếp hạng") })
                 AssistChip(onClick = onOpenPackages, label = { Text("💎 Gói đọc") })
             }
 

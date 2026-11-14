@@ -8,7 +8,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.huflit.quanlydoctruyen.data.PaymentStart
+import com.huflit.quanlydoctruyen.ui.screens.FollowingScreen
 import com.huflit.quanlydoctruyen.ui.screens.HomeScreen
+import com.huflit.quanlydoctruyen.ui.screens.NotificationsScreen
+import com.huflit.quanlydoctruyen.ui.screens.RankingScreen
 import com.huflit.quanlydoctruyen.ui.screens.LibraryScreen
 import com.huflit.quanlydoctruyen.ui.screens.LoginScreen
 import com.huflit.quanlydoctruyen.ui.screens.PackagesScreen
@@ -45,8 +48,34 @@ fun AppNavigation() {
                 onProfile = { nav.navigate("profile") },
                 onOpenPackages = toPackages,
                 onOpenReading = { nav.navigate("reading") },
-                onContinueReading = { storyId, chapter -> nav.navigate("story/$storyId/chapter/$chapter") }
+                onContinueReading = { storyId, chapter -> nav.navigate("story/$storyId/chapter/$chapter") },
+                onOpenNotifications = { nav.navigate("notifications") },
+                onOpenFollowing = { nav.navigate("following") },
+                onOpenRanking = { nav.navigate("ranking") }
             )
+        }
+
+        // PB28: truyện theo dõi
+        composable("following") {
+            FollowingScreen(
+                onOpenStory = { id -> nav.navigate("story/$id") },
+                onRead = { id, n -> nav.navigate("story/$id/chapter/$n") },
+                onBack = { nav.popBackStack() }
+            )
+        }
+
+        // PB29: thông báo
+        composable("notifications") {
+            NotificationsScreen(
+                onRead = { id, n -> nav.navigate("story/$id/chapter/$n") },
+                onOpenStory = { id -> nav.navigate("story/$id") },
+                onBack = { nav.popBackStack() }
+            )
+        }
+
+        // PB49: bảng xếp hạng
+        composable("ranking") {
+            RankingScreen(onOpenStory = { id -> nav.navigate("story/$id") }, onBack = { nav.popBackStack() })
         }
 
         // PB04: hồ sơ cá nhân
@@ -107,6 +136,7 @@ fun AppNavigation() {
             StoryDetailScreen(
                 storyId = id,
                 onRead = { number -> nav.navigate("story/$id/chapter/$number") },
+                onOpenStory = { other -> nav.navigate("story/$other") },
                 onBack = { nav.popBackStack() },
                 onOpenPackages = toPackages,
                 onNeedLogin = toLogin,

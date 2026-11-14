@@ -13,7 +13,10 @@ data class UserDto(
     val email: String,
     val displayName: String,
     val role: String,
-    val avatarUrl: String? = null
+    val avatarUrl: String? = null,
+    // PB34: Active / Restricted (không bình luận được) / Suspended
+    val status: String? = "Active",
+    val statusReason: String? = null
 )
 
 data class AuthResponse(val token: String, val expiresAt: String, val user: UserDto)
@@ -55,7 +58,12 @@ data class StoryListItem(
     val chapterCount: Int,
     val viewCount: Long,
     val createdAt: String,
-    val updatedAt: String
+    val updatedAt: String,
+    val latestChapterNumber: Int? = null,
+    val latestChapterTitle: String? = null,
+    val description: String? = null,
+    val ratingAverage: Double = 0.0,
+    val ratingCount: Int = 0
 )
 
 data class ChapterListItem(
@@ -85,7 +93,9 @@ data class StoryDetail(
     /** Có quyền đọc toàn bộ truyện */
     val hasFullAccess: Boolean,
     /** "Package" | "Purchase" | "Admin" | null */
-    val accessSource: String?
+    val accessSource: String?,
+    val ratingAverage: Double = 0.0,
+    val ratingCount: Int = 0
 )
 
 // PB18: gói đọc tháng đang bán (GET /api/packages)
@@ -232,3 +242,74 @@ fun formatVnd(amount: Double): String =
     NumberFormat.getIntegerInstance(Locale.forLanguageTag("vi-VN")).format(amount) + "đ"
 
 fun statusLabel(status: String) = if (status == "Completed") "Hoàn thành" else "Đang ra"
+
+// ---------- Sprint 4: theo dõi, thông báo, thảo luận (PB28 - PB31) ----------
+
+data class FollowStatus(val storyId: Int, val isFollowing: Boolean, val followerCount: Int)
+
+data class FollowedStory(
+    val storyId: Int,
+    val title: String,
+    val author: String,
+    val coverUrl: String?,
+    val status: String,
+    val chapterCount: Int,
+    val latestChapterNumber: Int?,
+    val latestChapterTitle: String?,
+    val updatedAt: String,
+    val followedAt: String
+)
+
+data class AppNotification(
+    val id: Int,
+    val message: String,
+    val storyId: Int?,
+    val chapterId: Int?,
+    val chapterNumber: Int?,
+    val isRead: Boolean,
+    val createdAt: String
+)
+
+data class UnreadCount(val count: Int)
+
+data class ChapterComment(
+    val id: Int,
+    val chapterId: Int,
+    val userId: Int,
+    val displayName: String,
+    val avatarUrl: String?,
+    val content: String,
+    val isHidden: Boolean,
+    val createdAt: String,
+    val replies: List<ChapterComment> = emptyList()
+)
+
+data class CommentRequest(val content: String, val parentId: Int? = null)
+
+data class ReportRequest(val reason: String)
+
+// ---------- Sprint 5: đánh giá, xếp hạng, gợi ý (PB49, PB50) ----------
+
+data class RatingSummary(val storyId: Int, val average: Double, val count: Int, val distribution: List<Int>, val myScore: Int?)
+
+data class RatingRequest(val score: Int)
+
+data class RankingItem(val rank: Int, val story: StoryListItem, val value: Double)
+
+data class Recommendation(val story: StoryListItem, val reason: String)
+
+/** "5 phút trước", "3 giờ trước"... */
+fun timeAgo(iso: String?): String {
+    if (iso.isNullOrBlank()) return ""
+    val then = runCatching { java.time.Instant.parse(iso) }.getOrNull()
+        ?: runCatching { java.time.LocalDateTime.parse(iso).toInstant(java.time.ZoneOffset.UTC) }.getOrNull()
+        ?: return ""
+    val seconds = java.time.Duration.between(then, java.time.Instant.now()).seconds
+    return when {
+        seconds < 60 -> "vừa xong"
+        seconds < 3600 -> "${seconds / 60} phút trước"
+        seconds < 86400 -> "${seconds / 3600} giờ trước"
+        seconds < 86400 * 30 -> "${seconds / 86400} ngày trước"
+        else -> formatDateTime(iso)
+    }
+}
