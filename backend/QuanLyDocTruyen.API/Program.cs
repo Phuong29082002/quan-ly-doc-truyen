@@ -70,6 +70,10 @@ builder.Services.AddScoped<IFollowService, FollowService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<ICommentService, CommentService>();
 builder.Services.AddScoped<IAdminUserService, AdminUserService>();
+builder.Services.AddScoped<IRatingService, RatingService>();
+builder.Services.AddScoped<IRankingService, RankingService>();
+builder.Services.AddScoped<IRecommendationService, RecommendationService>();
+builder.Services.AddScoped<IStatsService, StatsService>();
 builder.Services.AddHostedService<NewChapterNotifier>();
 
 builder.Services.AddControllers().AddJsonOptions(o =>
@@ -87,7 +91,8 @@ builder.Services.AddCors(o => o.AddPolicy("Frontend", p => p
     .WithOrigins("http://localhost:5173", "http://127.0.0.1:5173")
     .AllowAnyHeader()
     .AllowAnyMethod()
-    .AllowCredentials()));
+    .AllowCredentials()
+    .WithExposedHeaders("Content-Disposition")));
 
 var app = builder.Build();
 

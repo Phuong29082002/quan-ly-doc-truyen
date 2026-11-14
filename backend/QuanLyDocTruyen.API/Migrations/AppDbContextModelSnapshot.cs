@@ -179,6 +179,8 @@ namespace QuanLyDocTruyen.API.Migrations
 
                     b.HasKey("UserId", "StoryId");
 
+                    b.HasIndex("CreatedAt");
+
                     b.HasIndex("StoryId");
 
                     b.ToTable("Follows");
@@ -288,6 +290,33 @@ namespace QuanLyDocTruyen.API.Migrations
                     b.ToTable("PackageStories");
                 });
 
+            modelBuilder.Entity("QuanLyDocTruyen.API.Entities.Rating", b =>
+                {
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("StoryId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Score")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("UserId", "StoryId");
+
+                    b.HasIndex("StoryId");
+
+                    b.ToTable("Ratings", t =>
+                        {
+                            t.HasCheckConstraint("CK_Rating_Score", "[Score] BETWEEN 1 AND 5");
+                        });
+                });
+
             modelBuilder.Entity("QuanLyDocTruyen.API.Entities.ReadingProgress", b =>
                 {
                     b.Property<int>("UserId")
@@ -346,6 +375,12 @@ namespace QuanLyDocTruyen.API.Migrations
                     b.Property<decimal>("Price")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<double>("RatingAverage")
+                        .HasColumnType("float");
+
+                    b.Property<int>("RatingCount")
+                        .HasColumnType("int");
 
                     b.Property<string>("SearchText")
                         .IsRequired()
@@ -462,6 +497,8 @@ namespace QuanLyDocTruyen.API.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
 
                     b.HasIndex("PackageId");
 
@@ -702,6 +739,25 @@ namespace QuanLyDocTruyen.API.Migrations
                     b.Navigation("Package");
 
                     b.Navigation("Story");
+                });
+
+            modelBuilder.Entity("QuanLyDocTruyen.API.Entities.Rating", b =>
+                {
+                    b.HasOne("QuanLyDocTruyen.API.Entities.Story", "Story")
+                        .WithMany()
+                        .HasForeignKey("StoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("QuanLyDocTruyen.API.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Story");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("QuanLyDocTruyen.API.Entities.ReadingProgress", b =>

@@ -61,6 +61,7 @@ public class StoryService(AppDbContext db, IWebHostEnvironment env) : IStoryServ
         {
             "views" => query.OrderByDescending(s => s.ViewCount).ThenByDescending(s => s.UpdatedAt),
             "newest" => query.OrderByDescending(s => s.CreatedAt),
+            "rating" => query.OrderByDescending(s => s.RatingAverage).ThenByDescending(s => s.RatingCount),
             _ => query.OrderByDescending(s => s.UpdatedAt)
         };
 
@@ -69,18 +70,7 @@ public class StoryService(AppDbContext db, IWebHostEnvironment env) : IStoryServ
         var items = await query
             .Skip((q.Page - 1) * q.PageSize)
             .Take(q.PageSize)
-            .Select(s => new StoryListItemDto(
-                s.Id,
-                s.Title,
-                s.Author,
-                s.CoverUrl,
-                s.Status,
-                s.AccessType,
-                s.StoryGenres.Select(sg => new GenreRefDto(sg.GenreId, sg.Genre.Name)).ToList(),
-                s.Chapters.Count(c => c.PublishAt <= now),
-                s.ViewCount,
-                s.CreatedAt,
-                s.UpdatedAt))
+            .Select(StoryProjection.ListItem(now))
             .ToListAsync();
 
         var totalPages = (int)Math.Ceiling(total / (double)q.PageSize);

@@ -22,6 +22,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<ChapterView> ChapterViews => Set<ChapterView>();
     public DbSet<Comment> Comments => Set<Comment>();
     public DbSet<CommentReport> CommentReports => Set<CommentReport>();
+    public DbSet<Rating> Ratings => Set<Rating>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder b)
     {
@@ -35,6 +36,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         m.Entity<PackageStory>().HasKey(x => new { x.PackageId, x.StoryId });
         m.Entity<ReadingProgress>().HasKey(x => new { x.UserId, x.StoryId });
         m.Entity<Follow>().HasKey(x => new { x.UserId, x.StoryId });
+        m.Entity<Rating>().HasKey(x => new { x.UserId, x.StoryId });
+        m.Entity<Rating>().ToTable(t => t.HasCheckConstraint("CK_Rating_Score", "[Score] BETWEEN 1 AND 5"));
+        m.Entity<Follow>().HasIndex(x => x.CreatedAt);
+        m.Entity<Transaction>().HasIndex(x => x.CreatedAt);
 
         m.Entity<User>().HasIndex(x => x.Username).IsUnique();
         m.Entity<User>().HasIndex(x => x.Email).IsUnique();

@@ -97,6 +97,68 @@ public static class DbSeeder
         await SeedIllustratedStoryAsync(db);
         await SeedSprint3Async(db, hasher);
         await SeedSprint4Async(db, hasher);
+        await SeedSprint5Async(db);
+    }
+
+    /// <summary>
+    /// Sprint 5: đánh giá sao mẫu của các thành viên (PB49) và lượt đọc rải trong 30 ngày gần nhất
+    /// để bảng xếp hạng ngày/tuần/tháng và biểu đồ thống kê có dữ liệu khi demo (PB35-PB37).
+    /// </summary>
+    private static async Task SeedSprint5Async(AppDbContext db)
+    {
+        if (await db.Ratings.AnyAsync()) return;
+
+        var members = await db.Users.Where(u => u.Role == UserRole.Member).OrderBy(u => u.Id).ToListAsync();
+        var stories = await db.Stories.Include(s => s.Chapters).OrderBy(s => s.Id).ToListAsync();
+        if (members.Count == 0 || stories.Count == 0) return;
+
+        var random = new Random(2026);
+        var now = DateTime.UtcNow;
+
+        // Mỗi truyện có "độ hấp dẫn" riêng để xếp hạng khác nhau giữa các truyện
+        foreach (var (story, index) in stories.Select((s, i) => (s, i)))
+        {
+            var appeal = 1 + (stories.Count - index) % 5;
+            foreach (var member in members)
+            {
+                if (random.Next(10) >= 3 + appeal) continue;
+                var score = Math.Clamp(2 + appeal / 2 + random.Next(3), 1, 5);
+                db.Ratings.Add(new Rating { UserId = member.Id, StoryId = story.Id, Score = score, CreatedAt = now.AddDays(-random.Next(30)) });
+            }
+
+            var published = story.Chapters.Where(c => c.PublishAt <= now).OrderBy(c => c.Number).ToList();
+            if (published.Count == 0) continue;
+            if (await db.ChapterViews.CountAsync(v => v.StoryId == story.Id) > 200) continue;
+
+            for (var day = 0; day < 30; day++)
+            {
+                var count = random.Next(appeal * 2 + 1);
+                for (var k = 0; k < count; k++)
+                {
+                    // Người đọc thường dừng ở các chương đầu nên chương đầu nhiều lượt hơn
+                    var chapter = published[Math.Min(published.Count - 1, (int)(Math.Pow(random.NextDouble(), 2) * published.Count))];
+                    var reader = random.Next(3) == 0 ? null : (int?)members[random.Next(members.Count)].Id;
+                    db.ChapterViews.Add(new ChapterView
+                    {
+                        ChapterId = chapter.Id,
+                        StoryId = story.Id,
+                        UserId = reader,
+                        ViewedAt = now.AddDays(-day).AddMinutes(-random.Next(24 * 60))
+                    });
+                    chapter.ViewCount++;
+                    story.ViewCount++;
+                }
+            }
+        }
+        await db.SaveChangesAsync();
+
+        foreach (var story in stories)
+        {
+            var scores = await db.Ratings.Where(r => r.StoryId == story.Id).Select(r => r.Score).ToListAsync();
+            story.RatingCount = scores.Count;
+            story.RatingAverage = scores.Count == 0 ? 0 : Math.Round(scores.Average(), 2);
+        }
+        await db.SaveChangesAsync();
     }
 
     /// <summary>
