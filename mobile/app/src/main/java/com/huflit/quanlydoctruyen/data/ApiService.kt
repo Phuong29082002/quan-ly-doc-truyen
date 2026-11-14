@@ -80,6 +80,9 @@ interface ApiService {
     @POST("api/payments/package")
     suspend fun payPackage(@Body body: PackagePaymentRequest): PaymentStart
 
+    @POST("api/payments/package/{packageId}/restore")
+    suspend fun restorePackage(@Path("packageId") packageId: Int): TransactionDto
+
     @POST("api/payments/story")
     suspend fun payStory(@Body body: StoryPaymentRequest): PaymentStart
 

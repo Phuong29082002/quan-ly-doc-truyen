@@ -44,6 +44,8 @@ export interface Transaction {
   paidAt: string | null;
   isRenewal: boolean;
   packageEndAt: string | null;
+  /** Purchase | Renew | Switch | Restore */
+  packageMode: string | null;
 }
 
 export interface MyPackage {
@@ -54,6 +56,10 @@ export interface MyPackage {
   startAt: string;
   endAt: string;
   isActive: boolean;
+  /** Bị tạm dừng khi chuyển sang gói khác */
+  isPaused: boolean;
+  /** Số ngày được bảo lưu để khôi phục */
+  remainingDays: number;
 }
 
 export interface MyPurchase {
@@ -128,6 +134,9 @@ export const paymentApi = {
   mockResult: (id: number, success: boolean) =>
     api.post<Transaction>(`/api/payments/${id}/mock-result`, { success }).then((r) => r.data),
   get: (id: number) => api.get<Transaction>(`/api/payments/${id}`).then((r) => r.data),
+  /** Khôi phục gói đã bảo lưu (miễn phí) */
+  restorePackage: (packageId: number) =>
+    api.post<Transaction>(`/api/payments/package/${packageId}/restore`).then((r) => r.data),
   bankQr: (id: number) => api.get<BankQr>(`/api/payments/${id}/bank-qr`).then((r) => r.data),
 };
 
@@ -153,3 +162,10 @@ export const adminTransactionApi = {
   confirm: (id: number, received: boolean) =>
     api.post<AdminTransaction>(`/api/admin/transactions/${id}/confirm`, { received }).then((r) => r.data),
 };
+
+export function transactionLabel(t: Transaction): string {
+  if (t.type === "Story") return `Mua truyện ${t.storyTitle ?? ""}`;
+  const mode = t.packageMode ?? (t.isRenewal ? "Renew" : "Purchase");
+  const verb = { Purchase: "Đăng ký", Renew: "Gia hạn", Switch: "Chuyển sang", Restore: "Khôi phục" }[mode] ?? "Đăng ký";
+  return `${verb} gói ${t.packageName ?? ""}`;
+}

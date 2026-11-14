@@ -153,11 +153,20 @@ data class TransactionDto(
     val createdAt: String,
     val paidAt: String?,
     val isRenewal: Boolean,
-    val packageEndAt: String?
+    val packageEndAt: String?,
+    /** Purchase | Renew | Switch | Restore */
+    val packageMode: String? = null
 ) {
     val itemName: String
-        get() = if (type == "Package") "${if (isRenewal) "Gia hạn" else "Đăng ký"} gói ${packageName ?: ""}"
-        else "Mua truyện ${storyTitle ?: ""}"
+        get() = if (type == "Package") {
+            val verb = when (packageMode ?: if (isRenewal) "Renew" else "Purchase") {
+                "Renew" -> "Gia hạn"
+                "Switch" -> "Chuyển sang"
+                "Restore" -> "Khôi phục"
+                else -> "Đăng ký"
+            }
+            "$verb gói ${packageName ?: ""}"
+        } else "Mua truyện ${storyTitle ?: ""}"
 }
 
 fun transactionStatusLabel(status: String) = when (status) {
@@ -175,7 +184,10 @@ data class MyPackage(
     val scope: String,
     val startAt: String,
     val endAt: String,
-    val isActive: Boolean
+    val isActive: Boolean,
+    /** Bị tạm dừng khi chuyển gói; remainingDays = số ngày bảo lưu */
+    val isPaused: Boolean = false,
+    val remainingDays: Int = 0
 )
 
 data class MyPurchase(val storyId: Int, val storyTitle: String, val coverUrl: String?, val price: Double, val purchasedAt: String)

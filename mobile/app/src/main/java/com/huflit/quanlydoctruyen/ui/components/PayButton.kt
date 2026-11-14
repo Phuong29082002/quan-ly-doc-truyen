@@ -21,6 +21,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -50,7 +51,9 @@ fun PayButton(
     onNeedLogin: () -> Unit,
     onStarted: (PaymentStart) -> Unit,
     modifier: Modifier = Modifier,
-    outlined: Boolean = false
+    outlined: Boolean = false,
+    /** Lưu ý trong hộp xác nhận, ví dụ chuyển gói sẽ tạm dừng gói đang dùng */
+    note: String? = null
 ) {
     var open by remember { mutableStateOf(false) }
     fun handleClick() {
@@ -65,7 +68,7 @@ fun PayButton(
     else Button(onClick = { handleClick() }, modifier = modifier) { Text(label) }
 
     if (open) {
-        PaymentDialog(kind, targetId, itemName, amount, onDismiss = { open = false }, onStarted = { start ->
+        PaymentDialog(kind, targetId, itemName, amount, note, onDismiss = { open = false }, onStarted = { start ->
             open = false
             onStarted(start)
         })
@@ -78,6 +81,7 @@ private fun PaymentDialog(
     targetId: Int,
     itemName: String,
     amount: Double,
+    note: String?,
     onDismiss: () -> Unit,
     onStarted: (PaymentStart) -> Unit
 ) {
@@ -124,6 +128,7 @@ private fun PaymentDialog(
             Column {
                 Text("${if (kind == "package") "Gói đọc" else "Truyện"}: $itemName")
                 Text("Số tiền: ${formatVnd(amount)}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                if (note != null) Text(note, fontSize = 12.sp, color = Color(0xFFB45309), modifier = Modifier.padding(top = 8.dp))
                 Text("Chọn cổng thanh toán", fontWeight = FontWeight.Medium, modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
                 val p = providers
                 if (p == null && error == null) Text("Đang tải...")

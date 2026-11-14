@@ -22,6 +22,8 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -39,6 +41,8 @@ import com.huflit.quanlydoctruyen.data.UiState
 import com.huflit.quanlydoctruyen.data.formatDateTime
 import com.huflit.quanlydoctruyen.data.formatVnd
 import com.huflit.quanlydoctruyen.data.load
+import com.huflit.quanlydoctruyen.data.toMessage
+import kotlinx.coroutines.launch
 import com.huflit.quanlydoctruyen.data.transactionStatusLabel
 import com.huflit.quanlydoctruyen.ui.components.Badge
 import com.huflit.quanlydoctruyen.ui.components.ErrorBox
@@ -50,6 +54,8 @@ import com.huflit.quanlydoctruyen.ui.components.LoadingBox
 fun LibraryScreen(onOpenStory: (Int) -> Unit, onOpenPayment: (Int) -> Unit, onBack: () -> Unit) {
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var retry by remember { mutableIntStateOf(0) }
+    var message by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
 
     val library by produceState<UiState<MyLibrary>>(UiState.Loading, retry) {
         value = load { ApiClient.api.myLibrary() }
@@ -71,11 +77,18 @@ fun LibraryScreen(onOpenStory: (Int) -> Unit, onOpenPayment: (Int) -> Unit, onBa
                 Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("Gói & truyện đã mua") })
                 Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("Lịch sử thanh toán") })
             }
+            if (message != null) Text(message!!, modifier = Modifier.padding(16.dp, 8.dp))
             if (tab == 0) {
                 when (val s = library) {
                     is UiState.Loading -> LoadingBox()
                     is UiState.Error -> ErrorBox(s.message, onRetry = { retry++ })
-                    is UiState.Success -> LibraryContent(s.data, onOpenStory)
+                    is UiState.Success -> LibraryContent(s.data, onOpenStory, onRestore = { packageId ->
+                        scope.launch {
+                            message = runCatching { ApiClient.api.restorePackage(packageId) }
+                                .fold({ "Đã khôi phục gói đọc" }, { it.toMessage("Khôi phục thất bại") })
+                            retry++
+                        }
+                    })
                 }
             } else {
                 when (val s = history) {
@@ -89,7 +102,7 @@ fun LibraryScreen(onOpenStory: (Int) -> Unit, onOpenPayment: (Int) -> Unit, onBa
 }
 
 @Composable
-private fun LibraryContent(lib: MyLibrary, onOpenStory: (Int) -> Unit) {
+private fun LibraryContent(lib: MyLibrary, onOpenStory: (Int) -> Unit, onRestore: (Int) -> Unit) {
     LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         item { Text("Gói đọc", fontWeight = FontWeight.SemiBold, fontSize = 18.sp) }
         if (lib.packages.isEmpty()) item { Text("Bạn chưa đăng ký gói đọc nào.") }
@@ -100,8 +113,15 @@ private fun LibraryContent(lib: MyLibrary, onOpenStory: (Int) -> Unit) {
                         Text(p.packageName, fontWeight = FontWeight.Medium)
                         Text("${formatDateTime(p.startAt)} → ${formatDateTime(p.endAt)}", fontSize = 12.sp)
                     }
-                    if (p.isActive) Badge("Đang dùng", Color(0xFFDCFCE7), Color(0xFF15803D))
-                    else Badge("Hết hạn / chưa tới lượt", Color(0xFFF3F4F6), Color(0xFF4B5563))
+                    when {
+                        p.isActive -> Badge("Đang dùng", Color(0xFFDCFCE7), Color(0xFF15803D))
+                        p.isPaused && p.remainingDays > 0 -> Column(horizontalAlignment = Alignment.End) {
+                            Badge("Bảo lưu ${p.remainingDays} ngày", Color(0xFFFEF3C7), Color(0xFFB45309))
+                            TextButton(onClick = { onRestore(p.packageId) }) { Text("Khôi phục") }
+                        }
+                        p.isPaused -> Badge("Đã chuyển gói", Color(0xFFF3F4F6), Color(0xFF4B5563))
+                        else -> Badge("Hết hạn / chưa tới lượt", Color(0xFFF3F4F6), Color(0xFF4B5563))
+                    }
                 }
             }
         }

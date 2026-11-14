@@ -37,6 +37,9 @@ public interface IPaymentService
     /// <summary>PB24: Admin cấp lại quyền đọc cho giao dịch thành công bị thiếu quyền</summary>
     Task<AdminTransactionDto> GrantMissingRightsAsync(int transactionId);
 
+    /// <summary>Khôi phục gói đã bảo lưu khi chuyển gói (miễn phí, dùng số ngày còn lại)</summary>
+    Task<TransactionDto> RestorePackageAsync(int userId, int packageId);
+
     /// <summary>Chuyển khoản QR: thông tin tài khoản + ảnh mã VietQR của giao dịch</summary>
     Task<BankQrDto> GetBankQrAsync(int userId, int transactionId);
 
@@ -169,7 +172,7 @@ public class PaymentService(
             .Where(up => up.UserId == userId)
             .OrderByDescending(up => up.EndAt)
             .Select(up => new MyPackageDto(up.Id, up.PackageId, up.Package.Name, up.Package.Scope,
-                up.StartAt, up.EndAt, up.StartAt <= now && up.EndAt > now))
+                up.StartAt, up.EndAt, !up.IsPaused && up.StartAt <= now && up.EndAt > now, up.IsPaused, up.RemainingDays))
             .ToListAsync();
 
         var purchases = await db.StoryPurchases.AsNoTracking()
@@ -220,6 +223,44 @@ public class PaymentService(
         logger.LogInformation("Admin cấp lại quyền đọc cho giao dịch {TransactionId}", transactionId);
 
         return await ProjectAdmin(db.Transactions.AsNoTracking().Where(t => t.Id == transactionId)).FirstAsync();
+    }
+
+    public async Task<TransactionDto> RestorePackageAsync(int userId, int packageId)
+    {
+        await EnsureUserCanPayAsync(userId);
+        var now = DateTime.UtcNow;
+        var paused = await db.UserPackages
+            .Where(up => up.UserId == userId && up.PackageId == packageId && up.IsPaused && up.RemainingDays > 0)
+            .ToListAsync();
+        if (paused.Count == 0)
+            throw new BadRequestException("Không có gói đã bảo lưu nào để khôi phục");
+
+        var days = paused.Sum(up => up.RemainingDays);
+        foreach (var up in paused) up.RemainingDays = 0;
+        await PauseOtherPackagesAsync(userId, packageId, now);
+
+        // Khôi phục miễn phí: ghi một giao dịch 0đ để có lịch sử và gắn với quyền đọc
+        var transaction = new Transaction
+        {
+            UserId = userId,
+            Type = TransactionType.Package,
+            PackageId = packageId,
+            Amount = 0,
+            Status = TransactionStatus.Success,
+            PaidAt = now,
+            PackageMode = "Restore"
+        };
+        db.Transactions.Add(transaction);
+        db.UserPackages.Add(new UserPackage
+        {
+            UserId = userId,
+            PackageId = packageId,
+            Transaction = transaction,
+            StartAt = now,
+            EndAt = now.AddDays(days)
+        });
+        await db.SaveChangesAsync();
+        return await GetAsync(userId, transaction.Id);
     }
 
     public async Task<BankQrDto> GetBankQrAsync(int userId, int transactionId)
@@ -312,9 +353,22 @@ public class PaymentService(
         if (transaction.Type == TransactionType.Package && transaction.PackageId is int packageId)
         {
             var package = await db.Packages.FirstAsync(p => p.Id == packageId);
+
+            // Gia hạn (PB20): đang có gói này còn hạn thì cộng dồn từ ngày hết hạn hiện tại
             var currentEnd = await db.UserPackages
-                .Where(up => up.UserId == transaction.UserId && up.PackageId == packageId && up.EndAt > paidAt)
+                .Where(up => up.UserId == transaction.UserId && up.PackageId == packageId && !up.IsPaused && up.EndAt > paidAt)
                 .MaxAsync(up => (DateTime?)up.EndAt);
+
+            if (currentEnd is null)
+            {
+                // Chuyển gói: gói khác đang dùng được tạm dừng và bảo lưu số ngày còn lại
+                var paused = await PauseOtherPackagesAsync(transaction.UserId, packageId, paidAt);
+                transaction.PackageMode = paused ? "Switch" : "Purchase";
+            }
+            else
+            {
+                transaction.PackageMode = "Renew";
+            }
 
             var start = currentEnd ?? paidAt;
             db.UserPackages.Add(new UserPackage
@@ -340,6 +394,21 @@ public class PaymentService(
                 });
             }
         }
+    }
+
+    /// <summary>Tạm dừng các gói khác đang còn hạn, lưu số ngày còn lại để khôi phục sau. Trả về true nếu có gói bị tạm dừng</summary>
+    private async Task<bool> PauseOtherPackagesAsync(int userId, int exceptPackageId, DateTime now)
+    {
+        var others = await db.UserPackages
+            .Where(up => up.UserId == userId && up.PackageId != exceptPackageId && !up.IsPaused && up.EndAt > now)
+            .ToListAsync();
+        foreach (var up in others)
+        {
+            var from = up.StartAt > now ? up.StartAt : now;
+            up.RemainingDays = Math.Max(1, (int)Math.Ceiling((up.EndAt - from).TotalDays));
+            up.IsPaused = true;
+        }
+        return others.Count > 0;
     }
 
     private Task<bool> HasRightsAsync(Transaction t) => t.Type == TransactionType.Package
@@ -370,7 +439,7 @@ public class PaymentService(
             .OrderByDescending(t => t.CreatedAt)
             .Select(t => new
             {
-                t.Id, t.Type, t.Status, t.Amount, t.PackageId, t.StoryId, t.CreatedAt, t.PaidAt,
+                t.Id, t.Type, t.Status, t.Amount, t.PackageId, t.StoryId, t.CreatedAt, t.PaidAt, t.PackageMode,
                 PackageName = t.Package != null ? t.Package.Name : null,
                 StoryTitle = t.Story != null ? t.Story.Title : null,
                 Granted = db.UserPackages.Where(up => up.TransactionId == t.Id)
@@ -382,8 +451,10 @@ public class PaymentService(
             r.Id, r.Type, r.Status, r.Amount, r.PackageId, r.PackageName, r.StoryId, r.StoryTitle,
             r.CreatedAt, r.PaidAt,
             // Gia hạn = gói bắt đầu sau thời điểm thanh toán (được cộng dồn vào gói cũ còn hạn)
-            r.Granted != null && r.PaidAt != null && r.Granted.StartAt > r.PaidAt.Value.AddMinutes(1),
-            r.Granted?.EndAt)).ToList();
+            r.PackageMode == "Renew" ||
+                (r.PackageMode == null && r.Granted != null && r.PaidAt != null && r.Granted.StartAt > r.PaidAt.Value.AddMinutes(1)),
+            r.Granted?.EndAt,
+            r.PackageMode)).ToList();
     }
 
     private PaymentStartDto BuildStart(Transaction transaction, string provider, string orderInfo, string returnUrl, string ipAddress)

@@ -14,10 +14,12 @@ interface Props {
   amount: number;
   label: string;
   className?: string;
+  /** Lưu ý hiện trong hộp xác nhận (ví dụ: chuyển gói sẽ tạm dừng gói đang dùng) */
+  note?: string;
 }
 
 // PB19, PB20, PB21, PB45: chọn cổng thanh toán rồi chuyển sang trang thanh toán
-export default function PayButton({ kind, targetId, itemName, amount, label, className }: Props) {
+export default function PayButton({ kind, targetId, itemName, amount, label, className, note }: Props) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -90,6 +92,8 @@ export default function PayButton({ kind, targetId, itemName, amount, label, cla
               <dt className="text-gray-500">Số tiền</dt>
               <dd className="font-semibold text-blue-600">{formatPrice(amount)}</dd>
             </dl>
+
+            {note && <p className="mt-3 rounded bg-amber-50 px-3 py-2 text-xs text-amber-800">{note}</p>}
 
             <p className="mb-2 mt-4 text-sm font-medium">Chọn cổng thanh toán</p>
             {!providers && !error && <p className="text-sm text-gray-500">Đang tải...</p>}

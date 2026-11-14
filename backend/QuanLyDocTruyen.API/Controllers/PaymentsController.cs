@@ -23,6 +23,12 @@ public class PaymentsController(IPaymentService payments, IOptions<PaymentOption
     public async Task<ActionResult<PaymentStartDto>> PayPackage(PackagePaymentRequest req)
         => Ok(await payments.StartPackageAsync(User.GetUserId()!.Value, req, VnPayReturnUrl(), ClientIp()));
 
+    /// <summary>Khôi phục gói đã bảo lưu khi chuyển gói (miễn phí)</summary>
+    [Authorize]
+    [HttpPost("package/{packageId:int}/restore")]
+    public async Task<ActionResult<TransactionDto>> RestorePackage(int packageId)
+        => Ok(await payments.RestorePackageAsync(User.GetUserId()!.Value, packageId));
+
     /// <summary>Mua quyền đọc riêng một truyện</summary>
     [Authorize]
     [HttpPost("story")]

@@ -39,8 +39,17 @@ export default function PricingPage() {
   // Hạn xa nhất của từng gói (tính cả phần gia hạn chưa tới lượt)
   const myEnd = (packageId: number) => {
     if (!user || mine?.userId !== user.id) return null;
-    const ends = mine.packages.filter((p) => p.packageId === packageId && new Date(p.endAt).getTime() > mine.loadedAt).map((p) => p.endAt);
+    const ends = mine.packages.filter((p) => p.packageId === packageId && !p.isPaused && new Date(p.endAt).getTime() > mine.loadedAt).map((p) => p.endAt);
     return ends.length ? ends.sort().at(-1)! : null;
+  };
+
+  // Gói khác đang dùng: mua gói mới sẽ tạm dừng gói đó và bảo lưu số ngày còn lại
+  const switchNote = (packageId: number) => {
+    if (!user || mine?.userId !== user.id) return undefined;
+    const other = mine.packages.find((p) => p.isActive && p.packageId !== packageId);
+    if (!other) return undefined;
+    const days = Math.max(1, Math.ceil((new Date(other.endAt).getTime() - mine.loadedAt) / 86400000));
+    return `Bạn đang dùng gói ${other.packageName}. Khi chuyển sang gói này, gói ${other.packageName} được tạm dừng và bảo lưu ${days} ngày, có thể khôi phục lại trong Tài khoản.`;
   };
 
   return (
@@ -71,7 +80,8 @@ export default function PricingPage() {
               targetId={p.id}
               itemName={p.name}
               amount={p.price}
-              label={myEnd(p.id) ? "Gia hạn thêm" : "Đăng ký ngay"}
+              label={myEnd(p.id) ? "Gia hạn thêm" : switchNote(p.id) ? "Chuyển sang gói này" : "Đăng ký ngay"}
+              note={myEnd(p.id) ? undefined : switchNote(p.id)}
               className="mt-4 w-full rounded bg-blue-600 py-2 text-sm font-medium text-white hover:bg-blue-700"
             />
           </div>

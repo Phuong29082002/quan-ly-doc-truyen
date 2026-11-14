@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router";
 import { authApi } from "../api/auth";
-import { meApi, TRANSACTION_STATUS_LABEL, type MyLibrary, type Transaction } from "../api/payments";
+import { meApi, paymentApi, transactionLabel, TRANSACTION_STATUS_LABEL, type MyLibrary, type Transaction } from "../api/payments";
 import { formatDate, formatDateTime, formatPrice } from "../utils/format";
 import { assetUrl, getErrorMessage } from "../api/client";
 import { useAuth } from "../auth/useAuth";
@@ -177,6 +177,20 @@ function ProfileInfo() {
 // PB25: gói đang dùng + hạn gói, truyện đã mua
 function LibraryTab() {
   const [state, setState] = useState<{ data?: MyLibrary; error?: string }>();
+  const [reload, setReload] = useState(0);
+  const [msg, setMsg] = useState<Msg>(null);
+
+  async function restore(packageId: number, name: string, days: number) {
+    if (!confirm(`Khôi phục gói ${name} với ${days} ngày đã bảo lưu? Gói đang dùng (nếu có) sẽ được tạm dừng.`)) return;
+    setMsg(null);
+    try {
+      await paymentApi.restorePackage(packageId);
+      setMsg({ type: "success", text: `Đã khôi phục gói ${name}` });
+      setReload((r) => r + 1);
+    } catch (err) {
+      setMsg({ type: "error", text: getErrorMessage(err) });
+    }
+  }
 
   useEffect(() => {
     let ignore = false;
@@ -187,7 +201,7 @@ function LibraryTab() {
     return () => {
       ignore = true;
     };
-  }, []);
+  }, [reload]);
 
   if (!state) return <p className="text-gray-500">Đang tải...</p>;
   if (state.error || !state.data) return <Alert>{state.error ?? "Không tải được dữ liệu"}</Alert>;
@@ -195,6 +209,7 @@ function LibraryTab() {
   const { packages, purchases } = state.data;
   return (
     <div className="space-y-6">
+      {msg && <Alert type={msg.type}>{msg.text}</Alert>}
       <section className="rounded-lg border bg-white p-5">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-lg font-semibold">Gói đọc</h2>
@@ -211,6 +226,14 @@ function LibraryTab() {
                 <span className="ml-auto text-gray-600">{formatDate(p.startAt)} → {formatDateTime(p.endAt)}</span>
                 {p.isActive ? (
                   <span className="rounded bg-green-100 px-1.5 py-0.5 text-xs text-green-700">Đang dùng</span>
+                ) : p.isPaused && p.remainingDays > 0 ? (
+                  <span className="flex items-center gap-2">
+                    <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-700">Tạm dừng · bảo lưu {p.remainingDays} ngày</span>
+                    <button onClick={() => restore(p.packageId, p.packageName, p.remainingDays)}
+                      className="rounded border border-blue-300 px-2 py-0.5 text-xs text-blue-600 hover:bg-blue-50">Khôi phục</button>
+                  </span>
+                ) : p.isPaused ? (
+                  <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600">Đã chuyển gói</span>
                 ) : new Date(p.startAt) > new Date() ? (
                   <span className="rounded bg-blue-100 px-1.5 py-0.5 text-xs text-blue-700">Gia hạn, chưa tới lượt</span>
                 ) : (
@@ -284,7 +307,7 @@ function HistoryTab() {
             <tr key={t.id} className="border-t">
               <td className="px-3 py-2 font-mono">#{t.id}</td>
               <td className="px-3 py-2">
-                {t.type === "Package" ? `${t.isRenewal ? "Gia hạn" : "Đăng ký"} gói ${t.packageName}` : `Mua truyện ${t.storyTitle}`}
+                {transactionLabel(t)}
                 {t.packageEndAt && <span className="block text-xs text-gray-500">Hạn gói đến {formatDateTime(t.packageEndAt)}</span>}
               </td>
               <td className="px-3 py-2 text-right">{formatPrice(t.amount)}</td>

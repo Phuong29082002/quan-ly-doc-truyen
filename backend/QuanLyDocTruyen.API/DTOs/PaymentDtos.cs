@@ -46,7 +46,9 @@ public record TransactionDto(
     // Gia hạn gói (đã có gói này còn hạn lúc thanh toán)
     bool IsRenewal,
     // Gói hết hạn sau giao dịch này (chỉ có với giao dịch gói thành công)
-    DateTime? PackageEndAt);
+    DateTime? PackageEndAt,
+    // Purchase = đăng ký mới, Renew = gia hạn, Switch = chuyển gói, Restore = khôi phục gói bảo lưu
+    string? PackageMode);
 
 /// <summary>Thông tin chuyển khoản: QrImageUrl là ảnh mã VietQR đã điền sẵn số tiền và nội dung</summary>
 public record BankQrDto(
@@ -74,7 +76,9 @@ public class SePayWebhookRequest
 
 // ---------- Tủ sách của tôi (PB25) ----------
 
-public record MyPackageDto(int Id, int PackageId, string PackageName, PackageScope Scope, DateTime StartAt, DateTime EndAt, bool IsActive);
+/// <summary>IsPaused: gói bị tạm dừng khi chuyển sang gói khác, RemainingDays: số ngày được bảo lưu để khôi phục</summary>
+public record MyPackageDto(int Id, int PackageId, string PackageName, PackageScope Scope, DateTime StartAt, DateTime EndAt,
+    bool IsActive, bool IsPaused, int RemainingDays);
 
 public record MyPurchaseDto(int StoryId, string StoryTitle, string? CoverUrl, decimal Price, DateTime PurchasedAt);
 

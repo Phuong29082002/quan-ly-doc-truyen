@@ -56,8 +56,14 @@ fun PackagesScreen(onNeedLogin: () -> Unit, onPaymentStarted: (PaymentStart) -> 
 
     fun myEnd(packageId: Int): String? {
         val now = Instant.now()
-        return mine.filter { it.packageId == packageId && runCatching { Instant.parse(it.endAt).isAfter(now) }.getOrDefault(false) }
+        return mine.filter { it.packageId == packageId && !it.isPaused && runCatching { Instant.parse(it.endAt).isAfter(now) }.getOrDefault(false) }
             .maxByOrNull { it.endAt }?.endAt
+    }
+
+    // Gói khác đang dùng: mua gói mới sẽ tạm dừng gói đó và bảo lưu số ngày còn lại
+    fun switchNote(packageId: Int): String? {
+        val other = mine.firstOrNull { it.isActive && it.packageId != packageId } ?: return null
+        return "Bạn đang dùng gói ${other.packageName}. Khi chuyển sang gói này, gói ${other.packageName} được tạm dừng và bảo lưu số ngày còn lại, có thể khôi phục trong Tủ sách."
     }
 
     Scaffold(
@@ -103,7 +109,8 @@ fun PackagesScreen(onNeedLogin: () -> Unit, onPaymentStarted: (PaymentStart) -> 
                                 targetId = p.id,
                                 itemName = p.name,
                                 amount = p.price,
-                                label = if (end != null) "Gia hạn thêm" else "Đăng ký ngay",
+                                label = if (end != null) "Gia hạn thêm" else if (switchNote(p.id) != null) "Chuyển sang gói này" else "Đăng ký ngay",
+                                note = if (end != null) null else switchNote(p.id),
                                 onNeedLogin = onNeedLogin,
                                 onStarted = onPaymentStarted,
                                 modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
