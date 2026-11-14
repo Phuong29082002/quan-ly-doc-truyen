@@ -11,5 +11,8 @@ public class User
     public UserAvatar? Avatar { get; set; }
     public UserRole Role { get; set; } = UserRole.Member;
     public UserStatus Status { get; set; } = UserStatus.Active;
+    /// <summary>PB34: lý do hạn chế / tạm ngừng tài khoản</summary>
+    public string? StatusReason { get; set; }
+    public DateTime? StatusChangedAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

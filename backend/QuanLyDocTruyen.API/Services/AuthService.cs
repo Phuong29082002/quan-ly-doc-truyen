@@ -67,7 +67,7 @@ public class AuthService(
             throw new UnauthorizedException("Sai tên đăng nhập hoặc mật khẩu");
 
         if (user.Status == UserStatus.Suspended)
-            throw new ForbiddenException("Tài khoản đã bị tạm ngừng");
+            throw new ForbiddenException("Tài khoản đã bị tạm ngừng" + (string.IsNullOrWhiteSpace(user.StatusReason) ? "" : $". Lý do: {user.StatusReason}"));
 
         return CreateAuthResponse(user);
     }
@@ -157,5 +157,5 @@ public class AuthService(
     }
 
     private static UserDto ToDto(User u) =>
-        new(u.Id, u.Username, u.Email, u.DisplayName, u.Role.ToString(), u.AvatarUrl);
+        new(u.Id, u.Username, u.Email, u.DisplayName, u.Role.ToString(), u.AvatarUrl, u.Status.ToString(), u.StatusReason);
 }

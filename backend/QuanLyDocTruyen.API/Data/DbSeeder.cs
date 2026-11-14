@@ -20,6 +20,12 @@ public static class DbSeeder
 
         await db.Database.MigrateAsync();
 
+        // PB51: truyện tạo trước khi có tìm kiếm không dấu thì bổ sung chuỗi tìm kiếm
+        var missing = await db.Stories.Where(x => x.SearchText == "").ToListAsync();
+        foreach (var story in missing)
+            story.SearchText = QuanLyDocTruyen.API.Common.TextSearch.ForStory(story.Title, story.Author);
+        if (missing.Count > 0) await db.SaveChangesAsync();
+
         // PB03: tài khoản quản trị mặc định
         if (!await db.Users.AnyAsync(u => u.Role == UserRole.Admin))
         {
@@ -90,6 +96,44 @@ public static class DbSeeder
         await SeedSprint2Async(db, hasher);
         await SeedIllustratedStoryAsync(db);
         await SeedSprint3Async(db, hasher);
+        await SeedSprint4Async(db, hasher);
+    }
+
+    /// <summary>
+    /// Sprint 4: bình luận mẫu, một báo cáo vi phạm đang chờ xử lý (PB30-PB32)
+    /// và tài khoản vip theo dõi sẵn 2 truyện để thử thông báo chương mới (PB28, PB29).
+    /// </summary>
+    private static async Task SeedSprint4Async(AppDbContext db, IPasswordHasher<User> hasher)
+    {
+        if (await db.Users.AnyAsync(u => u.Username == "minh")) return;
+
+        var vip = await db.Users.FirstOrDefaultAsync(u => u.Username == "vip");
+        var chapter = await db.Chapters.Include(c => c.Story)
+            .Where(c => c.Story.Title == "Kiếm Khách Bên Sông Hồng" && c.Number == 1).FirstOrDefaultAsync();
+        if (vip is null || chapter is null) return;
+
+        var minh = new User { Username = "minh", Email = "minh@doctruyen.local", DisplayName = "Độc giả Minh" };
+        minh.PasswordHash = hasher.HashPassword(minh, "123456");
+        db.Users.Add(minh);
+        await db.SaveChangesAsync();
+
+        var now = DateTime.UtcNow;
+        var first = new Comment { ChapterId = chapter.Id, UserId = vip.Id, Content = "Mở đầu cuốn quá, đoạn thanh kiếm gãy dưới đáy sông rất có không khí!", CreatedAt = now.AddHours(-5) };
+        db.Comments.Add(first);
+        await db.SaveChangesAsync();
+        db.Comments.Add(new Comment { ChapterId = chapter.Id, UserId = minh.Id, ParentId = first.Id, Content = "Đồng ý, mong tác giả ra chương nhanh nhanh.", CreatedAt = now.AddHours(-4) });
+        var spam = new Comment { ChapterId = chapter.Id, UserId = minh.Id, Content = "Vào trang web lạ để nhận thẻ cào miễn phí!!!", CreatedAt = now.AddHours(-3) };
+        db.Comments.Add(spam);
+        await db.SaveChangesAsync();
+        db.CommentReports.Add(new CommentReport { CommentId = spam.Id, UserId = vip.Id, Reason = "Spam, quảng cáo", CreatedAt = now.AddHours(-2) });
+
+        foreach (var title in new[] { "Người Gác Đèn Cuối Cùng", "Chuyến Tàu Đêm Qua Đèo" })
+        {
+            var story = await db.Stories.FirstOrDefaultAsync(x => x.Title == title);
+            if (story is not null && !await db.Follows.AnyAsync(f => f.UserId == vip.Id && f.StoryId == story.Id))
+                db.Follows.Add(new Follow { UserId = vip.Id, StoryId = story.Id });
+        }
+        await db.SaveChangesAsync();
     }
 
     /// <summary>
@@ -247,6 +291,7 @@ public static class DbSeeder
         {
             Title = title,
             Author = author,
+            SearchText = QuanLyDocTruyen.API.Common.TextSearch.ForStory(title, author),
             Status = status,
             Description = description,
             CreatedAt = createdAt,

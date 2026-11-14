@@ -35,6 +35,17 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             NameClaimType = "name",
             RoleClaimType = "role"
         };
+        // PB46: SignalR (WebSocket) không gửi được header nên token đi kèm query ?access_token=
+        o.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = ctx =>
+            {
+                var token = ctx.Request.Query["access_token"];
+                if (!string.IsNullOrEmpty(token) && ctx.HttpContext.Request.Path.StartsWithSegments("/hubs"))
+                    ctx.Token = token;
+                return Task.CompletedTask;
+            }
+        };
     });
 builder.Services.AddAuthorization();
 
@@ -52,6 +63,15 @@ builder.Services.Configure<VnPayOptions>(builder.Configuration.GetSection("VnPay
 builder.Services.Configure<PaymentOptions>(builder.Configuration.GetSection("Payment"));
 builder.Services.Configure<BankQrOptions>(builder.Configuration.GetSection("BankQr"));
 
+// Sprint 4: theo dõi, thông báo, thảo luận, quản lý thành viên
+builder.Services.AddMemoryCache();
+builder.Services.AddSignalR();
+builder.Services.AddScoped<IFollowService, FollowService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<ICommentService, CommentService>();
+builder.Services.AddScoped<IAdminUserService, AdminUserService>();
+builder.Services.AddHostedService<NewChapterNotifier>();
+
 builder.Services.AddControllers().AddJsonOptions(o =>
 {
     // Enum trả về dạng chữ ("Ongoing", "Admin"...) thay vì số
@@ -66,7 +86,8 @@ builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddCors(o => o.AddPolicy("Frontend", p => p
     .WithOrigins("http://localhost:5173", "http://127.0.0.1:5173")
     .AllowAnyHeader()
-    .AllowAnyMethod()));
+    .AllowAnyMethod()
+    .AllowCredentials()));
 
 var app = builder.Build();
 
@@ -89,6 +110,8 @@ app.UseStaticFiles(); // phục vụ ảnh bìa trong wwwroot/uploads
 app.UseCors("Frontend");
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<UserStatusMiddleware>();
 app.MapControllers();
+app.MapHub<QuanLyDocTruyen.API.Hubs.NotificationHub>("/hubs/notifications");
 
 app.Run();

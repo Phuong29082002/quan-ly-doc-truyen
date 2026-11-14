@@ -93,22 +93,6 @@ namespace QuanLyDocTruyen.API.Migrations
                     b.ToTable("ChapterViews");
                 });
 
-            modelBuilder.Entity("QuanLyDocTruyen.API.Entities.UserAvatar", b =>
-                {
-                    b.HasOne("QuanLyDocTruyen.API.Entities.User", "User")
-                        .WithOne("Avatar")
-                        .HasForeignKey("QuanLyDocTruyen.API.Entities.UserAvatar", "UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("QuanLyDocTruyen.API.Entities.User", b =>
-                {
-                    b.Navigation("Avatar");
-                });
-
             modelBuilder.Entity("QuanLyDocTruyen.API.Entities.Comment", b =>
                 {
                     b.Property<int>("Id")
@@ -363,6 +347,10 @@ namespace QuanLyDocTruyen.API.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<string>("SearchText")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -519,6 +507,12 @@ namespace QuanLyDocTruyen.API.Migrations
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime?>("StatusChangedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("StatusReason")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Username")
                         .IsRequired()
@@ -808,6 +802,17 @@ namespace QuanLyDocTruyen.API.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("QuanLyDocTruyen.API.Entities.UserAvatar", b =>
+                {
+                    b.HasOne("QuanLyDocTruyen.API.Entities.User", "User")
+                        .WithOne("Avatar")
+                        .HasForeignKey("QuanLyDocTruyen.API.Entities.UserAvatar", "UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("QuanLyDocTruyen.API.Entities.UserPackage", b =>
                 {
                     b.HasOne("QuanLyDocTruyen.API.Entities.Package", "Package")
@@ -855,6 +860,11 @@ namespace QuanLyDocTruyen.API.Migrations
                     b.Navigation("Chapters");
 
                     b.Navigation("StoryGenres");
+                });
+
+            modelBuilder.Entity("QuanLyDocTruyen.API.Entities.User", b =>
+                {
+                    b.Navigation("Avatar");
                 });
 #pragma warning restore 612, 618
         }

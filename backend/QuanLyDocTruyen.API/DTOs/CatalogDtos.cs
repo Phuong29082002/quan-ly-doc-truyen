@@ -139,3 +139,7 @@ public record ChapterContentDto(
 // ---------- Ảnh minh họa trong chương (PB43) ----------
 
 public record ImageUploadResponse(string Url);
+
+// ---------- Tìm kiếm không dấu, gợi ý tức thì (PB51) ----------
+
+public record StorySuggestionDto(int Id, string Title, string Author, string? CoverUrl);
