@@ -33,11 +33,14 @@ export default function CoverImage({ src, title, className = "", book = false, s
     );
   }
 
+  // Bìa tạm: nền màu theo tên truyện, chữ cái đầu lớn mờ phía sau, tên truyện ở chân bìa
+  const color = colorOf(title);
   return (
-    <div style={{ backgroundColor: colorOf(title) }}
-      className={`flex flex-col justify-end gap-2 p-3 pl-4 text-white ${wrap}`}>
-      <span className="h-px w-8 bg-lamp" />
-      <span className="font-story text-sm font-semibold leading-snug">{title}</span>
+    <div style={{ backgroundColor: color, backgroundImage: `radial-gradient(120% 80% at 80% 0%, rgb(255 255 255 / 0.16), transparent 60%), linear-gradient(to top, rgb(0 0 0 / 0.35), transparent 55%)` }}
+      className={`relative flex flex-col justify-end gap-2 overflow-hidden p-3 pl-4 text-white ${wrap}`}>
+      <span aria-hidden className="pointer-events-none absolute -right-2 top-0 font-story text-[7rem] font-bold leading-none text-white/10">{title.trim().slice(0, 1)}</span>
+      <span className="relative h-px w-8 bg-lamp" />
+      <span className="relative font-story text-sm font-semibold leading-snug">{title}</span>
     </div>
   );
 }

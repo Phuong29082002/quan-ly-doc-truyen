@@ -6,7 +6,7 @@ import RatingPanel from "../components/RatingPanel";
 import RecommendationRow from "../components/RecommendationRow";
 import Stars from "../components/Stars";
 import { storyApi } from "../api/catalog";
-import { getErrorMessage } from "../api/client";
+import { assetUrl, getErrorMessage } from "../api/client";
 import type { StoryDetail } from "../api/types";
 import CoverImage from "../components/CoverImage";
 import StatusBadge from "../components/StatusBadge";
@@ -60,8 +60,17 @@ export default function StoryDetailPage() {
   return (
     <div>
       {/* Đầu trang truyện: nền mực nối với thanh điều hướng */}
-      <section className="-mx-4 -mt-6 bg-ink px-4 pb-8 pt-6 text-white sm:rounded-b-2xl">
-        <div className="flex flex-col gap-6 sm:flex-row">
+      <section className="relative -mx-4 -mt-6 overflow-hidden bg-ink px-4 pb-8 pt-4 text-white sm:rounded-b-2xl">
+        {assetUrl(story.coverUrl) && (
+          <img src={assetUrl(story.coverUrl)!} alt="" aria-hidden className="pointer-events-none absolute inset-0 h-full w-full scale-110 object-cover opacity-25 blur-2xl" />
+        )}
+        <nav aria-label="Đường dẫn" className="relative mb-4 flex flex-wrap items-center gap-1.5 text-xs text-white/60">
+          <Link to="/" className="hover:text-white">Trang chủ</Link>
+          {story.genres[0] && (<><span aria-hidden>/</span><Link to={`/?theloai=${story.genres[0].id}`} className="hover:text-white">{story.genres[0].name}</Link></>)}
+          <span aria-hidden>/</span>
+          <span className="truncate text-white/85">{story.title}</span>
+        </nav>
+        <div className="relative flex flex-col gap-6 sm:flex-row">
           <CoverImage src={story.coverUrl} title={story.title} book className="aspect-3/4 w-44 shrink-0 self-center sm:self-start" />
 
           <div className="min-w-0 flex-1">
@@ -112,41 +121,7 @@ export default function StoryDetailPage() {
       </section>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_320px]">
-        <div className="space-y-6">
-          {story.description && (
-            <section className="rounded-xl border bg-white p-5">
-              <h2 className="mb-2 font-story text-lg font-semibold">Giới thiệu</h2>
-              <p className="whitespace-pre-line font-story leading-relaxed text-gray-800">{story.description}</p>
-            </section>
-          )}
-
-          <section className="rounded-xl border bg-white p-5">
-            <h2 className="mb-3 font-story text-lg font-semibold">Mục lục</h2>
-            {story.chapters.length === 0 ? (
-              <p className="text-sm text-gray-500">Chưa có chương nào</p>
-            ) : (
-              <ul className="grid gap-x-6 sm:grid-cols-2">
-                {story.chapters.map((c) => (
-                  <li key={c.id} className="flex items-center gap-2 border-b py-2 text-sm">
-                    {c.isPublished ? (
-                      <Link to={`/truyen/${story.id}/chuong/${c.number}`} className={`flex-1 truncate hover:text-blue-700 ${myProgress?.chapterNumber === c.number ? "font-semibold text-blue-700" : ""}`}>
-                        Chương {c.number}: {c.title}
-                      </Link>
-                    ) : (
-                      <span className="flex-1 truncate text-gray-400">Chương {c.number}: {c.title}</span>
-                    )}
-                    {!c.isPublished && (
-                      <span className="shrink-0 rounded bg-purple-100 px-1.5 py-0.5 text-xs text-purple-700">
-                        Hẹn giờ {formatDateTime(c.publishAt)}
-                      </span>
-                    )}
-                    {c.isPublished && <ChapterBadge isFree={c.isFree} canRead={c.canRead} />}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        </div>
+        <StoryTabs story={story} currentChapter={myProgress?.chapterNumber} />
 
         <aside className="space-y-6">
           <AccessNotice story={story} loggedIn={!!user} />
@@ -156,6 +131,56 @@ export default function StoryDetailPage() {
 
       <SimilarStories storyId={story.id} />
     </div>
+  );
+}
+
+// Giới thiệu và mục lục chia hai thẻ; mục lục đảo được thứ tự để xem chương mới nhất trước
+function StoryTabs({ story, currentChapter }: { story: StoryDetail; currentChapter?: number }) {
+  const [tab, setTab] = useState<"intro" | "toc">(story.description ? "intro" : "toc");
+  const [newestFirst, setNewestFirst] = useState(false);
+  const chapters = newestFirst ? [...story.chapters].reverse() : story.chapters;
+  const tabClass = (on: boolean) => `-mb-px border-b-2 px-1 pb-3 font-story text-lg ${on ? "border-lamp font-semibold text-gray-900" : "border-transparent text-gray-500 hover:text-gray-800"}`;
+
+  return (
+    <section className="rounded-xl border bg-white p-5">
+      <div className="flex items-end gap-6 border-b" role="tablist">
+        <button role="tab" aria-selected={tab === "intro"} onClick={() => setTab("intro")} className={tabClass(tab === "intro")}>Giới thiệu</button>
+        <button role="tab" aria-selected={tab === "toc"} onClick={() => setTab("toc")} className={tabClass(tab === "toc")}>
+          Mục lục <span className="text-sm font-normal text-gray-400">{story.chapters.length}</span>
+        </button>
+        {tab === "toc" && story.chapters.length > 1 && (
+          <button onClick={() => setNewestFirst((v) => !v)} className="mb-3 ml-auto text-sm text-blue-700 hover:underline">
+            {newestFirst ? "Chương đầu trước" : "Chương mới trước"}
+          </button>
+        )}
+      </div>
+
+      {tab === "intro" ? (
+        <p className="mt-4 whitespace-pre-line font-story leading-relaxed text-gray-800">{story.description || "Truyện chưa có giới thiệu."}</p>
+      ) : chapters.length === 0 ? (
+        <p className="mt-4 text-sm text-gray-500">Chưa có chương nào</p>
+      ) : (
+        <ul className="mt-2 grid gap-x-6 sm:grid-cols-2">
+          {chapters.map((c) => (
+            <li key={c.id} className="flex items-center gap-2 border-b py-2 text-sm">
+              {c.isPublished ? (
+                <Link to={`/truyen/${story.id}/chuong/${c.number}`} className={`flex-1 truncate hover:text-blue-700 ${currentChapter === c.number ? "font-semibold text-blue-700" : ""}`}>
+                  Chương {c.number}: {c.title}
+                </Link>
+              ) : (
+                <span className="flex-1 truncate text-gray-400">Chương {c.number}: {c.title}</span>
+              )}
+              {!c.isPublished && (
+                <span className="shrink-0 rounded bg-purple-100 px-1.5 py-0.5 text-xs text-purple-700">
+                  Hẹn giờ {formatDateTime(c.publishAt)}
+                </span>
+              )}
+              {c.isPublished && <ChapterBadge isFree={c.isFree} canRead={c.canRead} />}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 
