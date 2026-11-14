@@ -202,7 +202,16 @@ public static class DbSeeder
 
         if (!await db.Users.AnyAsync(u => u.Username == "vip"))
         {
-            var monthly = await db.Packages.FirstAsync(p => p.Name == "Gói Tháng");
+            // DB đã có gói do Admin tự tạo thì dùng luôn; chưa có gói nào mới tạo "Gói Tháng"
+            var monthly = await db.Packages.FirstOrDefaultAsync(p => p.Name == "Gói Tháng")
+                ?? await db.Packages.FirstOrDefaultAsync(p => p.IsActive && p.Scope == PackageScope.All)
+                ?? await db.Packages.FirstOrDefaultAsync(p => p.IsActive);
+            if (monthly is null)
+            {
+                monthly = new Package { Name = "Gói Tháng", Price = 49000, DurationDays = 30, Scope = PackageScope.All };
+                db.Packages.Add(monthly);
+                await db.SaveChangesAsync();
+            }
             var vip = new User { Username = "vip", Email = "vip@doctruyen.local", DisplayName = "Độc giả VIP" };
             vip.PasswordHash = hasher.HashPassword(vip, "123456");
             db.Users.Add(vip);
