@@ -1,5 +1,10 @@
 package com.huflit.quanlydoctruyen.ui.screens
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -27,7 +32,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -38,6 +45,12 @@ import com.huflit.quanlydoctruyen.data.ChangePasswordRequest
 import com.huflit.quanlydoctruyen.data.SessionManager
 import com.huflit.quanlydoctruyen.data.UpdateProfileRequest
 import com.huflit.quanlydoctruyen.data.toMessage
+import com.huflit.quanlydoctruyen.ui.components.Avatar
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
 import kotlin.coroutines.cancellation.CancellationException
@@ -55,6 +68,10 @@ fun ProfileScreen(onBack: () -> Unit, onOpenLibrary: () -> Unit) {
     }
     if (user == null) return
 
+    val context = LocalContext.current
+    var avatarMsg by remember { mutableStateOf<Pair<Boolean, String>?>(null) }
+    var uploadingAvatar by remember { mutableStateOf(false) }
+
     var displayName by remember { mutableStateOf(user.displayName) }
     var profileMsg by remember { mutableStateOf<Pair<Boolean, String>?>(null) }
     var savingProfile by remember { mutableStateOf(false) }
@@ -64,6 +81,50 @@ fun ProfileScreen(onBack: () -> Unit, onOpenLibrary: () -> Unit) {
     var confirm by remember { mutableStateOf("") }
     var passMsg by remember { mutableStateOf<Pair<Boolean, String>?>(null) }
     var savingPass by remember { mutableStateOf(false) }
+
+    // PB04: đọc ảnh đã chọn, gửi multipart (field "file") lên API
+    fun uploadAvatar(uri: Uri) {
+        avatarMsg = null
+        scope.launch {
+            uploadingAvatar = true
+            try {
+                val resolver = context.contentResolver
+                val mime = resolver.getType(uri) ?: "image/jpeg"
+                val ext = when (mime) {
+                    "image/jpeg" -> ".jpg"
+                    "image/png" -> ".png"
+                    "image/webp" -> ".webp"
+                    else -> null
+                }
+                if (ext == null) {
+                    avatarMsg = false to "Chỉ chấp nhận ảnh JPG, PNG, WEBP"
+                    return@launch
+                }
+                val bytes = withContext(Dispatchers.IO) { resolver.openInputStream(uri)?.use { it.readBytes() } }
+                if (bytes == null || bytes.isEmpty()) {
+                    avatarMsg = false to "Không đọc được ảnh"
+                    return@launch
+                }
+                if (bytes.size > 2 * 1024 * 1024) {
+                    avatarMsg = false to "Ảnh đại diện tối đa 2MB"
+                    return@launch
+                }
+                val part = MultipartBody.Part.createFormData("file", "avatar$ext", bytes.toRequestBody(mime.toMediaType()))
+                SessionManager.updateUser(ApiClient.api.uploadAvatar(part))
+                avatarMsg = true to "Đã đổi ảnh đại diện"
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                avatarMsg = false to e.toMessage("Tải ảnh thất bại")
+            } finally {
+                uploadingAvatar = false
+            }
+        }
+    }
+
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) uploadAvatar(uri)
+    }
 
     fun saveProfile() {
         val name = displayName.trim()
@@ -127,8 +188,20 @@ fun ProfileScreen(onBack: () -> Unit, onOpenLibrary: () -> Unit) {
         ) {
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp)) {
-                    Text(user.displayName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    Text("Tên đăng nhập: ${user.username}", style = MaterialTheme.typography.bodyMedium)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Avatar(user.avatarUrl, user.displayName, 72.dp)
+                        Column(Modifier.padding(start = 16.dp)) {
+                            Text(user.displayName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                            OutlinedButton(
+                                onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                                enabled = !uploadingAvatar
+                            ) {
+                                Text(if (uploadingAvatar) "Đang tải..." else "Đổi ảnh đại diện")
+                            }
+                        }
+                    }
+                    Message(avatarMsg)
+                    Text("Tên đăng nhập: ${user.username}", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
                     Text("Email: ${user.email}", style = MaterialTheme.typography.bodyMedium)
                 }
             }

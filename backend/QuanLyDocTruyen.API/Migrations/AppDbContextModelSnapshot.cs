@@ -451,6 +451,9 @@ namespace QuanLyDocTruyen.API.Migrations
                     b.Property<int?>("PackageId")
                         .HasColumnType("int");
 
+                    b.Property<string>("PackageMode")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime?>("PaidAt")
                         .HasColumnType("datetime2");
 
@@ -562,7 +565,13 @@ namespace QuanLyDocTruyen.API.Migrations
                     b.Property<DateTime>("EndAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<bool>("IsPaused")
+                        .HasColumnType("bit");
+
                     b.Property<int>("PackageId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("RemainingDays")
                         .HasColumnType("int");
 
                     b.Property<DateTime>("StartAt")

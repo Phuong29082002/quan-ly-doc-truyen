@@ -44,7 +44,8 @@ fun AppNavigation() {
                 onLogin = toLogin,
                 onProfile = { nav.navigate("profile") },
                 onOpenPackages = toPackages,
-                onOpenReading = { nav.navigate("reading") }
+                onOpenReading = { nav.navigate("reading") },
+                onContinueReading = { storyId, chapter -> nav.navigate("story/$storyId/chapter/$chapter") }
             )
         }
 

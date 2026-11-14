@@ -4,6 +4,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import com.google.gson.JsonParser
+import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import retrofit2.HttpException
 import retrofit2.Response
@@ -12,6 +13,8 @@ import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.Multipart
+import retrofit2.http.Part
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
@@ -35,6 +38,11 @@ interface ApiService {
     // PB04: cập nhật hồ sơ, đổi mật khẩu (API trả 204 nên dùng Response<Unit>)
     @PUT("api/auth/me")
     suspend fun updateProfile(@Body body: UpdateProfileRequest): UserDto
+
+    // PB04: ảnh đại diện (multipart, field "file")
+    @Multipart
+    @POST("api/auth/me/avatar")
+    suspend fun uploadAvatar(@Part file: MultipartBody.Part): UserDto
 
     @POST("api/auth/change-password")
     suspend fun changePassword(@Body body: ChangePasswordRequest): Response<Unit>

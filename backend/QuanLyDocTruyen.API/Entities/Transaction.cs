@@ -14,4 +14,5 @@ public class Transaction
     public TransactionStatus Status { get; set; } = TransactionStatus.Pending;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? PaidAt { get; set; }
+    public string? PackageMode { get; set; }
 }

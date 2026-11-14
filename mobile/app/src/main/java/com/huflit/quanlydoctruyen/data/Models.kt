@@ -12,7 +12,8 @@ data class UserDto(
     val username: String,
     val email: String,
     val displayName: String,
-    val role: String
+    val role: String,
+    val avatarUrl: String? = null
 )
 
 data class AuthResponse(val token: String, val expiresAt: String, val user: UserDto)

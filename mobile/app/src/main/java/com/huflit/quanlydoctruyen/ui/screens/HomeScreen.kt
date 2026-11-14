@@ -47,9 +47,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.huflit.quanlydoctruyen.data.ApiClient
+import com.huflit.quanlydoctruyen.data.Genre
+import com.huflit.quanlydoctruyen.data.ReadingItem
 import com.huflit.quanlydoctruyen.data.SessionManager
 import com.huflit.quanlydoctruyen.data.StoryListItem
 import com.huflit.quanlydoctruyen.data.toMessage
+import com.huflit.quanlydoctruyen.ui.components.Avatar
 import com.huflit.quanlydoctruyen.ui.components.CoverImage
 import com.huflit.quanlydoctruyen.ui.components.ErrorBox
 import com.huflit.quanlydoctruyen.ui.components.StatusBadge
@@ -66,11 +69,16 @@ fun HomeScreen(
     onLogin: () -> Unit,
     onProfile: () -> Unit,
     onOpenPackages: () -> Unit,
-    onOpenReading: () -> Unit
+    onOpenReading: () -> Unit,
+    onContinueReading: (storyId: Int, chapter: Int) -> Unit
 ) {
     var input by rememberSaveable { mutableStateOf("") }
     var keyword by rememberSaveable { mutableStateOf("") }
     var sort by rememberSaveable { mutableStateOf("updated") }
+    var genreId by rememberSaveable { mutableStateOf<Int?>(null) }
+
+    val genres = remember { mutableStateListOf<Genre>() }
+    var recentReads by remember { mutableStateOf<List<ReadingItem>>(emptyList()) }
 
     val stories = remember { mutableStateListOf<StoryListItem>() }
     var page by remember { mutableIntStateOf(1) }
@@ -80,12 +88,31 @@ fun HomeScreen(
     var reloadKey by remember { mutableIntStateOf(0) }
     val scope = rememberCoroutineScope()
 
-    // Tải trang đầu mỗi khi đổi từ khóa / cách sắp xếp
-    LaunchedEffect(keyword, sort, reloadKey) {
+    // PB26, PB27: truyện đọc gần đây để đọc tiếp nhanh
+    LaunchedEffect(SessionManager.user?.id) {
+        recentReads = if (SessionManager.user == null) emptyList()
+        else runCatching { ApiClient.api.readingList().take(3) }.getOrDefault(emptyList())
+    }
+
+    // Danh sách thể loại để lọc
+    LaunchedEffect(reloadKey) {
+        try {
+            val all = ApiClient.api.genres()
+            genres.clear()
+            genres.addAll(all)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Không tải được thể loại thì chỉ ẩn bộ lọc, danh sách truyện vẫn dùng bình thường
+        }
+    }
+
+    // Tải trang đầu mỗi khi đổi từ khóa / cách sắp xếp / thể loại
+    LaunchedEffect(keyword, sort, genreId, reloadKey) {
         loading = true
         error = null
         try {
-            val res = ApiClient.api.searchStories(keyword = keyword.ifBlank { null }, sort = sort, page = 1)
+            val res = ApiClient.api.searchStories(keyword = keyword.ifBlank { null }, genreId = genreId, sort = sort, page = 1)
             stories.clear()
             stories.addAll(res.items)
             page = res.page
@@ -103,7 +130,7 @@ fun HomeScreen(
         scope.launch {
             loading = true
             try {
-                val res = ApiClient.api.searchStories(keyword = keyword.ifBlank { null }, sort = sort, page = page + 1)
+                val res = ApiClient.api.searchStories(keyword = keyword.ifBlank { null }, genreId = genreId, sort = sort, page = page + 1)
                 stories.addAll(res.items)
                 page = res.page
                 totalPages = res.totalPages
@@ -126,7 +153,10 @@ fun HomeScreen(
                 actions = {
                     if (user != null) {
                         // PB04: bấm vào tên để mở trang tài khoản (có nút đăng xuất)
-                        TextButton(onClick = onProfile) { Text("👤 ${user.displayName}", maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                        TextButton(onClick = onProfile) {
+                            Avatar(user.avatarUrl, user.displayName, 28.dp)
+                            Text(" ${user.displayName}", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
                     } else {
                         TextButton(onClick = onLogin) { Text("Đăng nhập") }
                     }
@@ -172,6 +202,18 @@ fun HomeScreen(
                 )
             }
 
+            if (genres.isNotEmpty()) {
+                Row(
+                    Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilterChip(selected = genreId == null, onClick = { genreId = null }, label = { Text("Tất cả thể loại") })
+                    genres.forEach { g ->
+                        FilterChip(selected = genreId == g.id, onClick = { genreId = g.id }, label = { Text(g.name) })
+                    }
+                }
+            }
+
             when {
                 error != null && stories.isEmpty() -> ErrorBox(error!!, onRetry = { reloadKey++ })
                 !loading && stories.isEmpty() -> Text(
@@ -184,6 +226,18 @@ fun HomeScreen(
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
+                    if (recentReads.isNotEmpty() && keyword.isBlank()) {
+                        item { Text("ĐỌC GẦN ĐÂY", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
+                        items(recentReads, key = { "recent-${it.storyId}" }) { r ->
+                            Card(Modifier.fillMaxWidth().clickable { onContinueReading(r.storyId, r.chapterNumber) }) {
+                                Column(Modifier.padding(12.dp)) {
+                                    Text(r.storyTitle, fontWeight = FontWeight.SemiBold)
+                                    Text("Đọc tiếp chương ${r.chapterNumber}: ${r.chapterTitle}", style = MaterialTheme.typography.bodySmall)
+                                }
+                            }
+                        }
+                        item { Text("DANH SÁCH TRUYỆN", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
+                    }
                     items(stories, key = { it.id }) { story ->
                         StoryRow(story, onClick = { onOpenStory(story.id) })
                     }
