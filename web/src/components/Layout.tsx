@@ -21,6 +21,7 @@ export default function Layout() {
           <nav className="flex gap-4 text-sm">
             <NavLink to="/" end className={linkClass}>Trang chủ</NavLink>
             <NavLink to="/goi-doc" className={linkClass}>Gói đọc</NavLink>
+            {user && <NavLink to="/dang-doc" className={linkClass}>Đang đọc</NavLink>}
             {/* PB03: chỉ Admin mới thấy menu Quản trị */}
             {isAdmin && <NavLink to="/admin" className={linkClass}>Quản trị</NavLink>}
           </nav>

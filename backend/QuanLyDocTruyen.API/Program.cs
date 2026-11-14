@@ -12,6 +12,9 @@ using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Cấu hình riêng trên máy (tài khoản ngân hàng nhận tiền, khóa VNPay...): không đưa lên GitHub
+builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
+
 builder.Services.AddDbContext<AppDbContext>(o =>
     o.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
 
@@ -43,6 +46,11 @@ builder.Services.AddScoped<IStoryService, StoryService>();
 builder.Services.AddScoped<IChapterService, ChapterService>();
 builder.Services.AddScoped<IPackageService, PackageService>();
 builder.Services.AddScoped<IImageUploadService, ImageUploadService>();
+builder.Services.AddScoped<IReadingService, ReadingService>();
+builder.Services.AddScoped<IPaymentService, PaymentService>();
+builder.Services.Configure<VnPayOptions>(builder.Configuration.GetSection("VnPay"));
+builder.Services.Configure<PaymentOptions>(builder.Configuration.GetSection("Payment"));
+builder.Services.Configure<BankQrOptions>(builder.Configuration.GetSection("BankQr"));
 
 builder.Services.AddControllers().AddJsonOptions(o =>
 {

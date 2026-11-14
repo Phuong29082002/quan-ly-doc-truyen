@@ -17,6 +17,11 @@ import AdminPackagesPage from "./pages/admin/AdminPackagesPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import PricingPage from "./pages/PricingPage";
 import ProfilePage from "./pages/ProfilePage";
+import MockPaymentPage from "./pages/MockPaymentPage";
+import BankTransferPage from "./pages/BankTransferPage";
+import PaymentResultPage from "./pages/PaymentResultPage";
+import ReadingListPage from "./pages/ReadingListPage";
+import AdminTransactionsPage from "./pages/admin/AdminTransactionsPage";
 
 export default function App() {
   return (
@@ -31,6 +36,10 @@ export default function App() {
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/goi-doc" element={<PricingPage />} />
             <Route path="/tai-khoan" element={<RequireAuth><ProfilePage /></RequireAuth>} />
+            <Route path="/dang-doc" element={<RequireAuth><ReadingListPage /></RequireAuth>} />
+            <Route path="/thanh-toan/gia-lap/:id" element={<RequireAuth><MockPaymentPage /></RequireAuth>} />
+            <Route path="/thanh-toan/chuyen-khoan/:id" element={<RequireAuth><BankTransferPage /></RequireAuth>} />
+            <Route path="/thanh-toan/ket-qua/:id" element={<RequireAuth><PaymentResultPage /></RequireAuth>} />
 
             <Route path="/admin" element={<RequireAdmin><AdminPage /></RequireAdmin>}>
               <Route index element={<Navigate to="truyen" replace />} />
@@ -41,6 +50,7 @@ export default function App() {
               <Route path="truyen/:id/chuong/moi" element={<AdminChapterFormPage />} />
               <Route path="chuong/:chapterId" element={<AdminChapterFormPage />} />
               <Route path="goi-doc" element={<AdminPackagesPage />} />
+              <Route path="giao-dich" element={<AdminTransactionsPage />} />
             </Route>
 
             <Route path="*" element={<NotFoundPage />} />

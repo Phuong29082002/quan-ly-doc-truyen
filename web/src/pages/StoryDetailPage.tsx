@@ -7,6 +7,8 @@ import CoverImage from "../components/CoverImage";
 import StatusBadge from "../components/StatusBadge";
 import AccessBadge from "../components/AccessBadge";
 import { useAuth } from "../auth/useAuth";
+import { meApi, type ReadingProgress } from "../api/payments";
+import PayButton from "../components/PayButton";
 import { formatDate, formatDateTime, formatNumber, formatPrice } from "../utils/format";
 
 // PB13: thông tin truyện + danh sách chương kèm trạng thái truy cập
@@ -26,6 +28,21 @@ export default function StoryDetailPage() {
       ignore = true;
     };
   }, [key, id]);
+
+  // PB26: tiến độ đọc của tôi (đồng bộ giữa Web và Mobile)
+  const [progress, setProgress] = useState<{ key: string; data: ReadingProgress | null }>();
+  useEffect(() => {
+    if (!user) return;
+    let ignore = false;
+    meApi
+      .progress(id)
+      .then((data) => !ignore && setProgress({ key, data }))
+      .catch(() => {});
+    return () => {
+      ignore = true;
+    };
+  }, [key, id, user]);
+  const myProgress = user && progress?.key === key ? progress.data : null;
 
   if (state?.key !== key) return <p className="py-12 text-center text-gray-500">Đang tải...</p>;
   if (state.error || !state.data) return <p className="py-12 text-center text-red-600">{state.error}</p>;
@@ -65,9 +82,14 @@ export default function StoryDetailPage() {
             <dd>{formatDate(story.updatedAt)}</dd>
           </dl>
 
-          <div className="mt-4 flex gap-2">
+          <div className="mt-4 flex flex-wrap gap-2">
+            {myProgress && (
+              <Link to={`/truyen/${story.id}/chuong/${myProgress.chapterNumber}`} className="rounded bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700">
+                Đọc tiếp chương {myProgress.chapterNumber}
+              </Link>
+            )}
             {first ? (
-              <Link to={`/truyen/${story.id}/chuong/${first.number}`} className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+              <Link to={`/truyen/${story.id}/chuong/${first.number}`} className={myProgress ? "rounded border px-4 py-2 text-sm hover:bg-gray-50" : "rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"}>
                 Đọc từ đầu
               </Link>
             ) : (
@@ -132,19 +154,31 @@ const SOURCE_TEXT: Record<string, string> = {
 function AccessNotice({ story, loggedIn }: { story: StoryDetail; loggedIn: boolean }) {
   if (story.accessType === "Free") return null;
 
+  const buy = (label: string, className?: string) => (
+    <PayButton kind="story" targetId={story.id} itemName={story.title} amount={story.price} label={label} className={className} />
+  );
+
   if (story.hasFullAccess && story.accessSource) {
-    return <p className="mt-4 rounded border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-700">{SOURCE_TEXT[story.accessSource]}</p>;
+    return (
+      <div className="mt-4 flex flex-wrap items-center gap-3 rounded border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-700">
+        <span>{SOURCE_TEXT[story.accessSource]}</span>
+        {/* Đang đọc bằng gói: vẫn cho mua để giữ quyền đọc khi gói hết hạn */}
+        {story.accessSource === "Package" && story.price > 0 &&
+          buy(`Mua vĩnh viễn · ${formatPrice(story.price)}`, "rounded border border-blue-300 bg-white px-3 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100")}
+      </div>
+    );
   }
 
   return (
-    <div className="mt-4 rounded border border-orange-200 bg-orange-50 px-3 py-2 text-sm text-orange-800">
-      Truyện có chương trả phí. Để đọc toàn bộ: mua truyện ({formatPrice(story.price)}) hoặc{" "}
-      <Link to="/goi-doc" className="font-medium underline">đăng ký gói đọc</Link>.
-      {!loggedIn && (
-        <>
-          {" "}Bạn cần <Link to="/login" className="font-medium underline">đăng nhập</Link> trước.
-        </>
-      )}
+    <div className="mt-4 rounded border border-orange-200 bg-orange-50 px-3 py-3 text-sm text-orange-800">
+      <p>
+        Truyện có chương trả phí. Để đọc toàn bộ: mua truyện hoặc đăng ký gói đọc.
+        {!loggedIn && " Bạn cần đăng nhập trước khi thanh toán."}
+      </p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {buy(`Mua truyện · ${formatPrice(story.price)}`)}
+        <Link to="/goi-doc" className="rounded border border-orange-300 bg-white px-4 py-2 text-sm font-medium hover:bg-orange-100">Xem gói đọc</Link>
+      </div>
     </div>
   );
 }

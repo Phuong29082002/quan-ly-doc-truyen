@@ -10,6 +10,7 @@ import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.PUT
@@ -63,6 +64,45 @@ interface ApiService {
     // PB18: gói đọc đang bán
     @GET("api/packages")
     suspend fun packages(): List<PackageItem>
+
+    // PB19, PB20, PB21, PB45: thanh toán
+    @GET("api/payments/providers")
+    suspend fun paymentProviders(): PaymentProviders
+
+    @POST("api/payments/package")
+    suspend fun payPackage(@Body body: PackagePaymentRequest): PaymentStart
+
+    @POST("api/payments/story")
+    suspend fun payStory(@Body body: StoryPaymentRequest): PaymentStart
+
+    @POST("api/payments/{id}/mock-result")
+    suspend fun mockResult(@Path("id") id: Int, @Body body: MockResultRequest): TransactionDto
+
+    @GET("api/payments/{id}")
+    suspend fun payment(@Path("id") id: Int): TransactionDto
+
+    @GET("api/payments/{id}/bank-qr")
+    suspend fun bankQr(@Path("id") id: Int): BankQr
+
+    // PB25: lịch sử thanh toán, gói và truyện đã mua
+    @GET("api/me/transactions")
+    suspend fun myTransactions(): List<TransactionDto>
+
+    @GET("api/me/library")
+    suspend fun myLibrary(): MyLibrary
+
+    // PB26, PB27: tiến độ đọc (API trả 204 khi chưa đọc truyện nên dùng Response)
+    @GET("api/me/reading")
+    suspend fun readingList(): List<ReadingItem>
+
+    @GET("api/me/reading/{storyId}")
+    suspend fun readingProgress(@Path("storyId") storyId: Int): Response<ReadingProgress>
+
+    @PUT("api/me/reading")
+    suspend fun saveProgress(@Body body: ReadingProgressRequest): ReadingProgress
+
+    @DELETE("api/me/reading/{storyId}")
+    suspend fun removeReading(@Path("storyId") storyId: Int): Response<Unit>
 }
 
 object ApiClient {
@@ -76,18 +116,21 @@ object ApiClient {
             Build.MODEL.contains("sdk_gphone") || Build.MODEL.contains("Emulator") ||
             Build.PRODUCT.contains("sdk")
 
+    private val apiHost: String = java.net.URI(BASE_URL).host
+
     /** Dùng chung cho Retrofit và tải ảnh (RemoteImage) */
     val http: OkHttpClient = OkHttpClient.Builder()
         .addInterceptor { chain ->
             val token = SessionManager.token
-            val request = if (token != null) {
+            // Chỉ gắn token khi gọi API của mình (không gửi token sang máy chủ khác, ví dụ ảnh mã QR)
+            val request = if (token != null && chain.request().url.host == apiHost) {
                 chain.request().newBuilder().header("Authorization", "Bearer $token").build()
             } else {
                 chain.request()
             }
             val response = chain.proceed(request)
             // Token hết hạn -> đăng xuất
-            if (response.code == 401 && token != null) {
+            if (response.code == 401 && token != null && chain.request().url.host == apiHost) {
                 Handler(Looper.getMainLooper()).post { SessionManager.logout() }
             }
             response

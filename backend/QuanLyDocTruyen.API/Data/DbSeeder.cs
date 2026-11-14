@@ -89,6 +89,36 @@ public static class DbSeeder
 
         await SeedSprint2Async(db, hasher);
         await SeedIllustratedStoryAsync(db);
+        await SeedSprint3Async(db, hasher);
+    }
+
+    /// <summary>
+    /// PB24: tài khoản "khach" có một giao dịch mua truyện đã thanh toán thành công nhưng chưa được cấp quyền đọc
+    /// (giả lập lỗi giữa chừng) để Admin thử chức năng đối soát và cấp lại quyền.
+    /// </summary>
+    private static async Task SeedSprint3Async(AppDbContext db, IPasswordHasher<User> hasher)
+    {
+        if (await db.Users.AnyAsync(u => u.Username == "khach")) return;
+
+        var story = await db.Stories.FirstOrDefaultAsync(s => s.Title == "Người Gác Đèn Cuối Cùng");
+        if (story is null) return;
+
+        var user = new User { Username = "khach", Email = "khach@doctruyen.local", DisplayName = "Khách đối soát" };
+        user.PasswordHash = hasher.HashPassword(user, "123456");
+        db.Users.Add(user);
+
+        var paidAt = DateTime.UtcNow.AddHours(-2);
+        db.Transactions.Add(new Transaction
+        {
+            User = user,
+            Type = TransactionType.Story,
+            StoryId = story.Id,
+            Amount = story.Price,
+            Status = TransactionStatus.Success,
+            CreatedAt = paidAt.AddMinutes(-1),
+            PaidAt = paidAt
+        });
+        await db.SaveChangesAsync();
     }
 
     /// <summary>

@@ -114,6 +114,107 @@ data class ChapterContent(
     val nextNumber: Int?
 )
 
+// ---------- Thanh toán (PB19, PB20, PB21, PB23, PB45) ----------
+
+data class PaymentProviders(val mock: Boolean, val vnPay: Boolean, val bankQr: Boolean)
+
+/** Chuyển khoản quét mã VietQR (app ngân hàng / MoMo) */
+data class BankQr(
+    val transactionId: Int,
+    val qrImageUrl: String,
+    val bankName: String,
+    val accountNo: String,
+    val accountName: String,
+    val amount: Double,
+    val transferContent: String,
+    val expiresAt: String,
+    val status: String
+)
+
+data class PackagePaymentRequest(val packageId: Int, val provider: String)
+
+data class StoryPaymentRequest(val storyId: Int, val provider: String)
+
+/** paymentUrl: link VNPay; null = cổng giả lập */
+data class PaymentStart(val transactionId: Int, val provider: String, val paymentUrl: String?)
+
+data class MockResultRequest(val success: Boolean)
+
+data class TransactionDto(
+    val id: Int,
+    val type: String,
+    val status: String,
+    val amount: Double,
+    val packageId: Int?,
+    val packageName: String?,
+    val storyId: Int?,
+    val storyTitle: String?,
+    val createdAt: String,
+    val paidAt: String?,
+    val isRenewal: Boolean,
+    val packageEndAt: String?
+) {
+    val itemName: String
+        get() = if (type == "Package") "${if (isRenewal) "Gia hạn" else "Đăng ký"} gói ${packageName ?: ""}"
+        else "Mua truyện ${storyTitle ?: ""}"
+}
+
+fun transactionStatusLabel(status: String) = when (status) {
+    "Success" -> "Thành công"
+    "Failed" -> "Thất bại"
+    else -> "Đang chờ"
+}
+
+// ---------- Tủ sách (PB25) ----------
+
+data class MyPackage(
+    val id: Int,
+    val packageId: Int,
+    val packageName: String,
+    val scope: String,
+    val startAt: String,
+    val endAt: String,
+    val isActive: Boolean
+)
+
+data class MyPurchase(val storyId: Int, val storyTitle: String, val coverUrl: String?, val price: Double, val purchasedAt: String)
+
+data class MyLibrary(val packages: List<MyPackage>, val purchases: List<MyPurchase>)
+
+// ---------- Tiến độ đọc (PB26, PB27) ----------
+
+data class ReadingProgressRequest(val storyId: Int, val chapterNumber: Int, val position: Double)
+
+data class ReadingProgress(
+    val storyId: Int,
+    val chapterNumber: Int,
+    val chapterTitle: String,
+    val position: Double,
+    val updatedAt: String
+)
+
+data class ReadingItem(
+    val storyId: Int,
+    val storyTitle: String,
+    val author: String,
+    val coverUrl: String?,
+    val chapterNumber: Int,
+    val chapterTitle: String,
+    val totalChapters: Int,
+    val position: Double,
+    val updatedAt: String
+)
+
+/** "2026-10-28T03:15:00Z" -> "28/10/2026 10:15" theo giờ máy */
+fun formatDateTime(iso: String?): String {
+    if (iso.isNullOrBlank()) return ""
+    return runCatching {
+        java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
+            .withZone(java.time.ZoneId.systemDefault())
+            .format(java.time.Instant.parse(iso))
+    }.getOrDefault(iso)
+}
+
 fun formatVnd(amount: Double): String =
     NumberFormat.getIntegerInstance(Locale.forLanguageTag("vi-VN")).format(amount) + "đ"
 

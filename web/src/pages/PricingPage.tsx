@@ -1,11 +1,16 @@
 import { useEffect, useState } from "react";
 import { packageApi, type PackageItem } from "../api/packages";
 import { getErrorMessage } from "../api/client";
-import { formatPrice } from "../utils/format";
+import { meApi, type MyPackage } from "../api/payments";
+import { useAuth } from "../auth/useAuth";
+import PayButton from "../components/PayButton";
+import { formatDateTime, formatPrice } from "../utils/format";
 
-// PB18: người đọc xem các gói đang bán (đăng ký + thanh toán ở Sprint 3)
+// PB18: gói đang bán; PB19: đăng ký và thanh toán; PB20: gia hạn (cộng dồn thời gian)
 export default function PricingPage() {
+  const { user } = useAuth();
   const [state, setState] = useState<{ data?: PackageItem[]; error?: string }>();
+  const [mine, setMine] = useState<{ userId: number; packages: MyPackage[]; loadedAt: number }>();
 
   useEffect(() => {
     let ignore = false;
@@ -17,6 +22,26 @@ export default function PricingPage() {
       ignore = true;
     };
   }, []);
+
+  // Gói đang dùng của tôi: để hiện nút "Gia hạn" và ngày hết hạn
+  useEffect(() => {
+    if (!user) return;
+    let ignore = false;
+    meApi
+      .library()
+      .then((lib) => !ignore && setMine({ userId: user.id, packages: lib.packages, loadedAt: Date.now() }))
+      .catch(() => {});
+    return () => {
+      ignore = true;
+    };
+  }, [user]);
+
+  // Hạn xa nhất của từng gói (tính cả phần gia hạn chưa tới lượt)
+  const myEnd = (packageId: number) => {
+    if (!user || mine?.userId !== user.id) return null;
+    const ends = mine.packages.filter((p) => p.packageId === packageId && new Date(p.endAt).getTime() > mine.loadedAt).map((p) => p.endAt);
+    return ends.length ? ends.sort().at(-1)! : null;
+  };
 
   return (
     <div>
@@ -38,13 +63,17 @@ export default function PricingPage() {
                 ? "Đọc tất cả truyện trả phí trên hệ thống."
                 : `Đọc các truyện: ${p.stories.map((s) => s.title).join(", ")}.`}
             </p>
-            <button
-              disabled
-              title="Thanh toán sẽ có ở Sprint 3"
-              className="mt-5 rounded bg-blue-600 py-2 text-sm font-medium text-white opacity-50"
-            >
-              Đăng ký (sắp ra mắt)
-            </button>
+            {myEnd(p.id) && (
+              <p className="mt-3 rounded bg-green-50 px-2 py-1 text-xs text-green-700">Bạn đang dùng gói này, hạn đến {formatDateTime(myEnd(p.id)!)}</p>
+            )}
+            <PayButton
+              kind="package"
+              targetId={p.id}
+              itemName={p.name}
+              amount={p.price}
+              label={myEnd(p.id) ? "Gia hạn thêm" : "Đăng ký ngay"}
+              className="mt-4 w-full rounded bg-blue-600 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            />
           </div>
         ))}
       </div>

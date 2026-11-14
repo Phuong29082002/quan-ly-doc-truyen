@@ -486,3 +486,6 @@ backend/QuanLyDocTruyen.API/wwwroot/uploads/covers/*
 !backend/QuanLyDocTruyen.API/wwwroot/uploads/covers/.gitkeep
 # Ảnh minh họa chương upload khi chạy thử (PB43)
 backend/QuanLyDocTruyen.API/wwwroot/uploads/chapters/*
+
+# Cấu hình riêng trên máy (tài khoản ngân hàng, khóa VNPay/SePay): không đưa lên GitHub
+backend/QuanLyDocTruyen.API/appsettings.Local.json

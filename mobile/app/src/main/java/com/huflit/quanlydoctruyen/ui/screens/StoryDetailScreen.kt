@@ -15,6 +15,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -33,6 +34,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.huflit.quanlydoctruyen.data.ApiClient
 import com.huflit.quanlydoctruyen.data.PackageItem
+import com.huflit.quanlydoctruyen.data.PaymentStart
+import com.huflit.quanlydoctruyen.data.ReadingProgress
 import com.huflit.quanlydoctruyen.data.SessionManager
 import com.huflit.quanlydoctruyen.data.StoryDetail
 import com.huflit.quanlydoctruyen.data.UiState
@@ -41,13 +44,21 @@ import com.huflit.quanlydoctruyen.data.load
 import com.huflit.quanlydoctruyen.ui.components.Badge
 import com.huflit.quanlydoctruyen.ui.components.CoverImage
 import com.huflit.quanlydoctruyen.ui.components.ErrorBox
+import com.huflit.quanlydoctruyen.ui.components.PayButton
 import com.huflit.quanlydoctruyen.ui.components.LoadingBox
 import com.huflit.quanlydoctruyen.ui.components.StatusBadge
 
 // PB13: thông tin truyện + danh sách chương kèm trạng thái truy cập
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun StoryDetailScreen(storyId: Int, onRead: (Int) -> Unit, onBack: () -> Unit) {
+fun StoryDetailScreen(
+    storyId: Int,
+    onRead: (Int) -> Unit,
+    onBack: () -> Unit,
+    onOpenPackages: () -> Unit,
+    onNeedLogin: () -> Unit,
+    onPaymentStarted: (PaymentStart) -> Unit
+) {
     var retry by remember { mutableIntStateOf(0) }
     // Tải lại khi đăng nhập/đăng xuất để cập nhật nhãn "Đã mở khóa"
     val state by produceState<UiState<StoryDetail>>(UiState.Loading, storyId, retry, SessionManager.user?.id) {
@@ -66,14 +77,27 @@ fun StoryDetailScreen(storyId: Int, onRead: (Int) -> Unit, onBack: () -> Unit) {
         when (val s = state) {
             is UiState.Loading -> LoadingBox(Modifier.padding(padding))
             is UiState.Error -> ErrorBox(s.message, Modifier.padding(padding), onRetry = { retry++ })
-            is UiState.Success -> StoryDetailContent(s.data, onRead, Modifier.padding(padding))
+            is UiState.Success -> StoryDetailContent(s.data, onRead, onOpenPackages, onNeedLogin, onPaymentStarted, Modifier.padding(padding))
         }
     }
 }
 
 @Composable
-private fun StoryDetailContent(story: StoryDetail, onRead: (Int) -> Unit, modifier: Modifier) {
+private fun StoryDetailContent(
+    story: StoryDetail,
+    onRead: (Int) -> Unit,
+    onOpenPackages: () -> Unit,
+    onNeedLogin: () -> Unit,
+    onPaymentStarted: (PaymentStart) -> Unit,
+    modifier: Modifier
+) {
     val published = story.chapters.filter { it.isPublished }
+
+    // PB26: tiến độ đọc của tôi (đồng bộ với Web) để hiện nút "Đọc tiếp"
+    val progress by produceState<ReadingProgress?>(null, story.id, SessionManager.user?.id) {
+        value = if (SessionManager.user == null) null
+        else runCatching { ApiClient.api.readingProgress(story.id).body() }.getOrNull()
+    }
 
     // PB18: gói đọc đang bán áp dụng cho truyện này (admin đổi trên web thì hiện ở đây)
     val packages by produceState<List<PackageItem>>(emptyList(), story.id) {
@@ -103,9 +127,21 @@ private fun StoryDetailContent(story: StoryDetail, onRead: (Int) -> Unit, modifi
 
         item {
             Column(Modifier.padding(horizontal = 16.dp)) {
+                val p = progress
+                if (p != null) {
+                    Button(onClick = { onRead(p.chapterNumber) }, modifier = Modifier.fillMaxWidth()) {
+                        Text("Đọc tiếp chương ${p.chapterNumber}")
+                    }
+                }
                 if (published.isNotEmpty()) {
-                    Button(onClick = { onRead(published.first().number) }, modifier = Modifier.fillMaxWidth()) {
-                        Text("Đọc từ đầu")
+                    if (p == null) {
+                        Button(onClick = { onRead(published.first().number) }, modifier = Modifier.fillMaxWidth()) {
+                            Text("Đọc từ đầu")
+                        }
+                    } else {
+                        OutlinedButton(onClick = { onRead(published.first().number) }, modifier = Modifier.fillMaxWidth()) {
+                            Text("Đọc từ đầu")
+                        }
                     }
                 }
                 if (!story.description.isNullOrBlank()) {
@@ -132,11 +168,20 @@ private fun StoryDetailContent(story: StoryDetail, onRead: (Int) -> Unit, modifi
                         val scope = if (p.scope == "All") "Tất cả truyện" else "Một số truyện"
                         Text("${p.name}: ${formatVnd(p.price)} / ${p.durationDays} ngày ($scope)", style = MaterialTheme.typography.bodyMedium)
                     }
-                    Text(
-                        "Chức năng đăng ký gói sẽ được bổ sung ở bản cập nhật tiếp theo.",
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(top = 4.dp)
+                }
+                // PB21: mua quyền đọc riêng truyện; PB19: đăng ký gói
+                if (story.accessType != "Free" && !story.hasFullAccess && story.price > 0) {
+                    PayButton(
+                        kind = "story",
+                        targetId = story.id,
+                        itemName = story.title,
+                        amount = story.price,
+                        label = "Mua truyện · ${formatVnd(story.price)}",
+                        onNeedLogin = onNeedLogin,
+                        onStarted = onPaymentStarted,
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
                     )
+                    OutlinedButton(onClick = onOpenPackages, modifier = Modifier.fillMaxWidth()) { Text("Xem gói đọc") }
                 }
                 Text(
                     "Danh sách chương",

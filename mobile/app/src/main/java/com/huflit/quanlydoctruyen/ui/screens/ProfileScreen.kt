@@ -45,7 +45,7 @@ import kotlin.coroutines.cancellation.CancellationException
 // PB04: xem, cập nhật hồ sơ và đổi mật khẩu
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileScreen(onBack: () -> Unit) {
+fun ProfileScreen(onBack: () -> Unit, onOpenLibrary: () -> Unit) {
     val user = SessionManager.user
     val scope = rememberCoroutineScope()
 
@@ -131,6 +131,11 @@ fun ProfileScreen(onBack: () -> Unit) {
                     Text("Tên đăng nhập: ${user.username}", style = MaterialTheme.typography.bodyMedium)
                     Text("Email: ${user.email}", style = MaterialTheme.typography.bodyMedium)
                 }
+            }
+
+            // PB25: gói đang dùng, truyện đã mua, lịch sử thanh toán
+            Button(onClick = onOpenLibrary, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                Text("Gói đọc, truyện đã mua & lịch sử thanh toán")
             }
 
             SectionTitle("Thông tin cá nhân")

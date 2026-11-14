@@ -14,7 +14,7 @@ public interface IChapterService
     Task<ChapterAdminDto> UpdateAsync(int id, ChapterRequest req);
 }
 
-public class ChapterService(AppDbContext db) : IChapterService
+public class ChapterService(AppDbContext db, IReadingService reading) : IChapterService
 {
     // PB14, PB22: đọc chương. Chương miễn phí ai cũng đọc được; chương trả phí cần gói còn hạn hoặc đã mua truyện
     public async Task<ChapterContentDto> ReadAsync(int storyId, int number, int? userId, bool isAdmin)
@@ -50,6 +50,10 @@ public class ChapterService(AppDbContext db) : IChapterService
         story.ViewCount++;
         db.ChapterViews.Add(new ChapterView { ChapterId = chapter.Id, StoryId = storyId, UserId = userId });
         await db.SaveChangesAsync();
+
+        // PB26: thành viên mở chương thì tự lưu tiến độ đọc
+        if (userId is int uid)
+            await reading.TrackChapterAsync(uid, storyId, chapter.Id);
 
         return new ChapterContentDto(
             chapter.Id, storyId, story.Title, chapter.Number, chapter.Title,

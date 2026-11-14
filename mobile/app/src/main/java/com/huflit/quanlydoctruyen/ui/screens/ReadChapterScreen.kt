@@ -20,6 +20,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -37,18 +39,32 @@ import androidx.compose.ui.unit.sp
 import com.huflit.quanlydoctruyen.data.ApiClient
 import com.huflit.quanlydoctruyen.data.ChapterContent
 import com.huflit.quanlydoctruyen.data.LockInfo
+import com.huflit.quanlydoctruyen.data.PaymentStart
+import com.huflit.quanlydoctruyen.data.ReadingProgressRequest
 import com.huflit.quanlydoctruyen.data.SessionManager
 import com.huflit.quanlydoctruyen.data.UiState
 import com.huflit.quanlydoctruyen.data.formatVnd
 import com.huflit.quanlydoctruyen.data.load
 import com.huflit.quanlydoctruyen.ui.components.ChapterBody
 import com.huflit.quanlydoctruyen.ui.components.ErrorBox
+import com.huflit.quanlydoctruyen.ui.components.PayButton
 import com.huflit.quanlydoctruyen.ui.components.LoadingBox
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlin.math.abs
 
 // PB14: đọc chương, chuyển chương, chỉnh cỡ chữ, chế độ tối
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ReadChapterScreen(storyId: Int, number: Int, onGoTo: (Int) -> Unit, onLogin: () -> Unit, onBack: () -> Unit) {
+fun ReadChapterScreen(
+    storyId: Int,
+    number: Int,
+    onGoTo: (Int) -> Unit,
+    onLogin: () -> Unit,
+    onBack: () -> Unit,
+    onOpenPackages: () -> Unit,
+    onPaymentStarted: (PaymentStart) -> Unit
+) {
     var retry by remember { mutableIntStateOf(0) }
     val state by produceState<UiState<ChapterContent>>(UiState.Loading, storyId, number, retry, SessionManager.user?.id) {
         value = UiState.Loading
@@ -76,11 +92,36 @@ fun ReadChapterScreen(storyId: Int, number: Int, onGoTo: (Int) -> Unit, onLogin:
                 is UiState.Loading -> LoadingBox()
                 is UiState.Error ->
                     // PB22: chương trả phí chưa có quyền đọc
-                    if (s.lock != null) LockedChapter(number, s.lock, onLogin, onBack)
+                    if (s.lock != null) LockedChapter(storyId, number, s.lock, onLogin, onBack, onOpenPackages, onPaymentStarted)
                     else ErrorBox(s.message, onRetry = if (s.code == 403) null else ({ retry++ }))
                 is UiState.Success -> {
                     val c = s.data
-                    Column(Modifier.verticalScroll(rememberScrollState(), true).padding(16.dp)) {
+                    val scroll = rememberScrollState()
+
+                    // PB26: mở lại đúng vị trí đọc lần trước (kể cả khi lần trước đọc trên Web)
+                    LaunchedEffect(c.id) {
+                        if (SessionManager.user == null) return@LaunchedEffect
+                        val p = runCatching { ApiClient.api.readingProgress(storyId).body() }.getOrNull()
+                        if (p != null && p.chapterNumber == c.number && p.position > 0.02) {
+                            delay(400) // chờ ảnh minh họa tải xong để tính đúng chiều dài chương
+                            scroll.animateScrollTo((p.position * scroll.maxValue).toInt())
+                        }
+                    }
+                    // PB26: dừng cuộn 1 giây thì lưu vị trí đọc lên máy chủ
+                    LaunchedEffect(c.id) {
+                        if (SessionManager.user == null) return@LaunchedEffect
+                        var lastSaved = -1.0
+                        snapshotFlow { scroll.value to scroll.maxValue }.collectLatest { (value, max) ->
+                            delay(1000)
+                            val pos = if (max > 0) (value.toDouble() / max).coerceIn(0.0, 1.0) else 0.0
+                            if (abs(pos - lastSaved) >= 0.01) {
+                                lastSaved = pos
+                                runCatching { ApiClient.api.saveProgress(ReadingProgressRequest(storyId, c.number, pos)) }
+                            }
+                        }
+                    }
+
+                    Column(Modifier.verticalScroll(scroll, true).padding(16.dp)) {
                         Text(
                             "Chương ${c.number}: ${c.title}",
                             fontWeight = FontWeight.Bold,
@@ -132,7 +173,15 @@ private fun ChapterNav(c: ChapterContent, onGoTo: (Int) -> Unit) {
 }
 
 @Composable
-private fun LockedChapter(number: Int, lock: LockInfo, onLogin: () -> Unit, onBack: () -> Unit) {
+private fun LockedChapter(
+    storyId: Int,
+    number: Int,
+    lock: LockInfo,
+    onLogin: () -> Unit,
+    onBack: () -> Unit,
+    onOpenPackages: () -> Unit,
+    onPaymentStarted: (PaymentStart) -> Unit
+) {
     val loggedIn = SessionManager.user != null
     Column(
         Modifier.fillMaxSize().padding(24.dp),
@@ -153,12 +202,19 @@ private fun LockedChapter(number: Int, lock: LockInfo, onLogin: () -> Unit, onBa
             if (lock.price != null && lock.price > 0) {
                 Text("Giá mua truyện: ${formatVnd(lock.price)}", fontWeight = FontWeight.Medium, modifier = Modifier.padding(top = 8.dp))
             }
-            Text(
-                "Chức năng đăng ký gói và mua truyện sẽ được bổ sung ở bản cập nhật tiếp theo.",
-                fontSize = 12.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 8.dp)
-            )
+            if (lock.price != null && lock.price > 0) {
+                PayButton(
+                    kind = "story",
+                    targetId = storyId,
+                    itemName = lock.storyTitle ?: "Truyện",
+                    amount = lock.price,
+                    label = "Mua truyện · ${formatVnd(lock.price)}",
+                    onNeedLogin = onLogin,
+                    onStarted = onPaymentStarted,
+                    modifier = Modifier.padding(top = 16.dp)
+                )
+            }
+            OutlinedButton(onClick = onOpenPackages, modifier = Modifier.padding(top = 8.dp)) { Text("Xem gói đọc") }
         }
         TextButton(onClick = onBack, modifier = Modifier.padding(top = 12.dp)) { Text("Về mục lục") }
     }

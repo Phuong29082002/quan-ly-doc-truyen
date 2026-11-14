@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { meApi } from "../api/payments";
+import PayButton from "../components/PayButton";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
 import axios from "axios";
 import { storyApi } from "../api/catalog";
@@ -68,6 +70,52 @@ export default function ReadChapterPage() {
     };
   }, [key, storyId, number]);
 
+  // PB26: mở lại đúng vị trí đọc lần trước và tự lưu vị trí khi cuộn (đồng bộ với Mobile)
+  const loaded = state?.key === key && !!state.data;
+  useEffect(() => {
+    if (!user || !loaded) return;
+    let stopped = false;
+    let timer: number | undefined;
+    let lastSaved = -1;
+
+    const fraction = () => {
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      return max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0;
+    };
+    const save = () => {
+      const pos = Math.round(fraction() * 1000) / 1000;
+      if (Math.abs(pos - lastSaved) < 0.01) return;
+      lastSaved = pos;
+      meApi.saveProgress(storyId, number, pos).catch(() => {});
+    };
+    const onScroll = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(save, 1000);
+    };
+
+    meApi
+      .progress(storyId)
+      .then((p) => {
+        if (stopped || !p || p.chapterNumber !== number || p.position < 0.02) return;
+        lastSaved = p.position;
+        // Chờ ảnh minh họa hiển thị rồi mới cuộn tới vị trí cũ
+        window.setTimeout(() => {
+          if (stopped) return;
+          const max = document.documentElement.scrollHeight - window.innerHeight;
+          window.scrollTo({ top: p.position * max, behavior: "smooth" });
+        }, 400);
+      })
+      .catch(() => {});
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      stopped = true;
+      window.removeEventListener("scroll", onScroll);
+      // Không lưu thêm khi rời trang: lúc chuyển chương, API tự ghi nhận chương mới từ đầu
+      window.clearTimeout(timer);
+    };
+  }, [user, loaded, storyId, number]);
+
   function changeSettings(next: Partial<ReaderSettings>) {
     const merged = { ...settings, ...next };
     setSettings(merged);
@@ -99,8 +147,13 @@ export default function ReadChapterPage() {
           <>
             <p className="mt-4 text-gray-700">Bạn cần có gói đọc còn hạn hoặc mua truyện để đọc chương này.</p>
             {lock.price ? <p className="mt-2 text-sm text-gray-600">Giá mua truyện: <b>{formatNumber(lock.price)}đ</b></p> : null}
-            <Link to="/goi-doc" className="mt-4 inline-block rounded bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700">Xem các gói đọc</Link>
-            <p className="mt-3 text-xs text-gray-500">Chức năng thanh toán sẽ được bổ sung ở Sprint 3.</p>
+            <div className="mt-5 flex flex-wrap justify-center gap-3">
+              {lock.price ? (
+                <PayButton kind="story" targetId={storyId} itemName={lock.storyTitle ?? "Truyện"} amount={lock.price}
+                  label={`Mua truyện · ${formatNumber(lock.price)}đ`} className="rounded bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700" />
+              ) : null}
+              <Link to="/goi-doc" className="rounded border px-5 py-2 text-sm font-medium hover:bg-gray-50">Xem các gói đọc</Link>
+            </div>
           </>
         )}
 

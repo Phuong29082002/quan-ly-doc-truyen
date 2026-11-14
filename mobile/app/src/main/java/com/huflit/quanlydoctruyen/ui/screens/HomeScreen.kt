@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -60,7 +61,13 @@ private val SORTS = listOf("updated" to "Mới cập nhật", "newest" to "Mới
 // PB11: tìm kiếm truyện, PB12: các danh sách gợi ý
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(onOpenStory: (Int) -> Unit, onLogin: () -> Unit, onProfile: () -> Unit) {
+fun HomeScreen(
+    onOpenStory: (Int) -> Unit,
+    onLogin: () -> Unit,
+    onProfile: () -> Unit,
+    onOpenPackages: () -> Unit,
+    onOpenReading: () -> Unit
+) {
     var input by rememberSaveable { mutableStateOf("") }
     var keyword by rememberSaveable { mutableStateOf("") }
     var sort by rememberSaveable { mutableStateOf("updated") }
@@ -138,6 +145,15 @@ fun HomeScreen(onOpenStory: (Int) -> Unit, onLogin: () -> Unit, onProfile: () ->
                 trailingIcon = { TextButton(onClick = { keyword = input.trim() }) { Text("Tìm") } },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
             )
+
+            // PB27: truyện đang đọc, PB19: gói đọc
+            Row(
+                Modifier.padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (user != null) AssistChip(onClick = onOpenReading, label = { Text("📖 Đang đọc") })
+                AssistChip(onClick = onOpenPackages, label = { Text("💎 Gói đọc") })
+            }
 
             Row(
                 Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
