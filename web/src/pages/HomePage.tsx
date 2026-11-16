@@ -1,14 +1,18 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { genreApi, storyApi, type StorySort } from "../api/catalog";
-import { assetUrl, getErrorMessage } from "../api/client";
+import { getErrorMessage } from "../api/client";
 import { meApi, type ReadingItem } from "../api/payments";
 import type { Genre, PagedResult, StoryListItem, StoryStatus } from "../api/types";
 import { useAuth } from "../auth/useAuth";
 import CoverImage from "../components/CoverImage";
 import Pagination from "../components/Pagination";
 import StoryCard from "../components/StoryCard";
-import Carousel, { CarouselItem } from "../components/Carousel";
+import Billboard from "../cinema/Billboard";
+import ContinueCard from "../cinema/ContinueCard";
+import PosterCard from "../cinema/PosterCard";
+import Row from "../cinema/Row";
+import Top10Card from "../cinema/Top10Card";
 import Stars from "../components/Stars";
 import { rankingApi, recommendationApi, type RankingItem, type Recommendation } from "../api/discovery";
 import { formatNumber, timeAgo } from "../utils/format";
@@ -25,7 +29,7 @@ interface HomeData {
   completed: StoryListItem[];
   hot: RankingItem[];
   topRated: RankingItem[];
-  topFollowed: RankingItem[];
+  byGenre: { genre: Genre; items: StoryListItem[] }[];
 }
 
 // PB11: tìm kiếm, lọc, sắp xếp; PB12: các danh sách ở trang chủ
@@ -72,42 +76,46 @@ export default function HomePage() {
 function HomeView({ genres }: { genres: Genre[] }) {
   const { user } = useAuth();
   const [state, setState] = useState<{ data?: HomeData; error?: string }>();
-  const [pick, setPick] = useState(0);
   const [reading, setReading] = useState<{ userId: number; items: ReadingItem[] }>();
   const [recs, setRecs] = useState<{ userId: number; items: Recommendation[] }>();
+  const genreKey = genres.slice(0, 3).map((g) => g.id).join(",");
 
   useEffect(() => {
     let ignore = false;
+    const shown = genres.slice(0, 3);
     Promise.all([
       storyApi.search({ sort: "views", pageSize: 10 }),
-      storyApi.search({ sort: "updated", pageSize: 12 }),
-      storyApi.search({ status: "Completed", sort: "updated", pageSize: 12 }),
+      storyApi.search({ sort: "updated", pageSize: 16 }),
+      storyApi.search({ status: "Completed", sort: "updated", pageSize: 16 }),
       rankingApi.get("views", "week", 10),
-      rankingApi.get("rating", "all", 5),
-      rankingApi.get("follows", "month", 5),
+      rankingApi.get("rating", "all", 16),
+      Promise.all(shown.map((g) => storyApi.search({ genreId: g.id, sort: "views", pageSize: 16 }))),
     ])
-      .then(([views, updated, completed, hot, topRated, topFollowed]) => {
+      .then(([views, updated, completed, hot, topRated, genreResults]) => {
         if (ignore) return;
         // Truyện đề cử: truyện đọc nhiều có ảnh bìa và mô tả được ưu tiên
         const featured = [...views.items].sort((a, b) => Number(!!b.coverUrl) - Number(!!a.coverUrl)).slice(0, 5);
-        setState({ data: { featured, updated: updated.items, completed: completed.items, hot, topRated, topFollowed } });
+        const byGenre = shown.map((genre, i) => ({ genre, items: genreResults[i].items })).filter((g) => g.items.length > 0);
+        setState({ data: { featured, updated: updated.items, completed: completed.items, hot, topRated, byGenre } });
       })
       .catch((err) => !ignore && setState({ error: getErrorMessage(err, "Không tải được danh sách truyện") }));
     return () => {
       ignore = true;
     };
-  }, []);
+    // genres chỉ đổi khi danh sách thể loại tải xong, genreKey đại diện cho nó
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [genreKey]);
 
   useEffect(() => {
     if (!user) return;
     let ignore = false;
     meApi
       .readingList()
-      .then((items) => !ignore && setReading({ userId: user.id, items: items.slice(0, 4) }))
+      .then((items) => !ignore && setReading({ userId: user.id, items: items.slice(0, 10) }))
       .catch(() => {});
     // PB50: gợi ý theo thể loại hay đọc
     recommendationApi
-      .forMe(10)
+      .forMe(16)
       .then((items) => !ignore && setRecs({ userId: user.id, items }))
       .catch(() => {});
     return () => {
@@ -115,212 +123,94 @@ function HomeView({ genres }: { genres: Genre[] }) {
     };
   }, [user]);
 
-  if (!state) return <p className="py-16 text-center text-gray-500">Đang tải…</p>;
+  if (!state) return <HomeSkeleton />;
   if (state.error || !state.data) return <p className="py-16 text-center text-red-600">{state.error}</p>;
 
-  const { featured, updated, completed, hot, topRated, topFollowed } = state.data;
-  const hero = featured[pick] ?? featured[0];
+  const { featured, updated, completed, hot, topRated, byGenre } = state.data;
   const myReading = user && reading?.userId === user.id ? reading.items : [];
   const myRecs = user && recs?.userId === user.id ? recs.items : [];
-  const heroCover = assetUrl(hero?.coverUrl);
+  const more = (to: string) => <Link to={to} className="text-blue-700 hover:underline">Xem tất cả ›</Link>;
 
   return (
-    <div className="space-y-12">
-      {/* Truyện đề cử: nền là ảnh bìa làm mờ, nối liền với đầu trang màu mực */}
-      {hero && (
-        <section className="relative -mx-4 -mt-6 overflow-hidden bg-ink px-4 pb-8 pt-6 text-white sm:rounded-b-2xl">
-          {heroCover && (
-            <img src={heroCover} alt="" aria-hidden className="pointer-events-none absolute inset-0 h-full w-full scale-110 object-cover opacity-25 blur-2xl" />
-          )}
-          <div className="relative grid items-end gap-6 md:grid-cols-[220px_1fr_210px]">
-            <Link to={`/truyen/${hero.id}`} className="mx-auto w-28 sm:w-40 md:w-full">
-              <CoverImage src={hero.coverUrl} title={hero.title} book className="aspect-3/4 w-full" />
-            </Link>
-            <div className="min-w-0">
-              <p className="text-sm text-lamp">Truyện đề cử</p>
-              <h1 className="mt-1 font-story text-3xl font-semibold leading-tight md:text-4xl">{hero.title}</h1>
-              <p className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-white/70">
-                <span>{hero.author}, {hero.chapterCount} chương, {formatNumber(hero.viewCount)} lượt đọc</span>
-                {hero.ratingCount ? <span className="flex items-center gap-1"><Stars value={hero.ratingAverage ?? 0} size={13} /> {hero.ratingAverage?.toFixed(1)}</span> : null}
-              </p>
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {hero.genres.map((g) => (
-                  <Link key={g.id} to={`/?theloai=${g.id}`} className="rounded-full border border-white/20 px-2.5 py-0.5 text-xs text-white/80 hover:border-lamp hover:text-white">{g.name}</Link>
-                ))}
-              </div>
-              {hero.description && <p className="mt-4 line-clamp-3 max-w-2xl font-story leading-relaxed text-white/85">{hero.description}</p>}
-              <div className="mt-5 flex flex-wrap gap-3">
-                <Link to={`/truyen/${hero.id}/chuong/1`} className="rounded-full bg-lamp px-5 py-2 text-sm font-semibold text-ink hover:bg-amber-300">Đọc từ chương 1</Link>
-                <Link to={`/truyen/${hero.id}`} className="rounded-full border border-white/25 px-5 py-2 text-sm hover:bg-white/10">Xem mục lục</Link>
-              </div>
-            </div>
-            {featured.length > 1 && (
-              <ul className="hidden gap-2 md:grid" aria-label="Chọn truyện đề cử">
-                {featured.map((s, i) => (
-                  <li key={s.id}>
-                    <button onClick={() => setPick(i)} aria-pressed={i === pick}
-                      className={`flex w-full items-center gap-2 rounded-lg p-1.5 text-left text-sm ${i === pick ? "bg-white/12 text-white" : "text-white/65 hover:bg-white/6 hover:text-white"}`}>
-                      <CoverImage src={s.coverUrl} title={s.title} className="h-12 w-9 shrink-0 rounded-sm" small />
-                      <span className="line-clamp-2 font-story leading-snug">{s.title}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-          {/* Điện thoại: chấm chuyển truyện đề cử */}
-          {featured.length > 1 && (
-            <div className="relative mt-5 flex justify-center gap-2 md:hidden">
-              {featured.map((s, i) => (
-                <button key={s.id} onClick={() => setPick(i)} aria-label={`Truyện đề cử ${i + 1}: ${s.title}`}
-                  className={`h-2 rounded-full transition-all ${i === pick ? "w-6 bg-lamp" : "w-2 bg-white/35"}`} />
-              ))}
-            </div>
-          )}
-        </section>
-      )}
+    <div className="space-y-8 sm:space-y-10">
+      <Billboard stories={featured} />
 
-      {/* PB26, PB27: đọc tiếp nhanh */}
+      {/* PB26, PB27: đọc tiếp */}
       {myReading.length > 0 && (
-        <section>
-          <div className="mb-3 flex items-baseline justify-between">
-            <h2 className="font-story text-xl font-semibold">Đọc tiếp</h2>
-            <Link to="/dang-doc" className="text-sm text-blue-700 hover:underline">Tất cả truyện đang đọc</Link>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {myReading.map((r) => (
-              <Link key={r.storyId} to={`/truyen/${r.storyId}/chuong/${r.chapterNumber}`} className="flex gap-3 rounded-xl border bg-white p-2.5 hover:border-blue-300">
-                <CoverImage src={r.coverUrl} title={r.storyTitle} className="h-16 w-12 shrink-0 rounded-sm" small />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate font-story font-semibold">{r.storyTitle}</span>
-                  <span className="block truncate text-xs text-gray-500">Chương {r.chapterNumber}: {r.chapterTitle}</span>
-                  {/* Thanh tiến độ: đã đọc tới chương nào trên tổng số chương */}
-                  <span className="mt-2 block h-1 overflow-hidden rounded-full bg-gray-100">
-                    <span className="block h-full rounded-full bg-blue-600" style={{ width: `${Math.min(100, (r.chapterNumber / Math.max(1, r.totalChapters)) * 100)}%` }} />
-                  </span>
-                  <span className="mt-1 block text-xs text-gray-500">{timeAgo(r.updatedAt)}</span>
-                </span>
-              </Link>
-            ))}
-          </div>
-        </section>
+        <Row title={`Đọc tiếp cùng ${user?.displayName ?? "bạn"}`} action={more("/dang-doc")}>
+          {myReading.map((r) => <ContinueCard key={r.storyId} item={r} />)}
+        </Row>
       )}
 
       {myRecs.length > 0 && (
-        <Carousel title="Có thể bạn thích">
-          {myRecs.map(({ story, reason }) => (
-            <CarouselItem key={story.id}>
-              <StoryCard story={story} note={reason} />
-            </CarouselItem>
-          ))}
-        </Carousel>
+        <Row title="Có thể bạn thích">
+          {myRecs.map(({ story, reason }) => <PosterCard key={story.id} story={story} note={reason} />)}
+        </Row>
       )}
 
       {hot.length > 0 && (
-        <Carousel title="Đang hot tuần này" action={<Link to="/xep-hang" className="text-sm text-blue-700 hover:underline">Bảng xếp hạng</Link>}>
-          {hot.map(({ story, rank }) => (
-            <CarouselItem key={story.id}>
-              <StoryCard story={story} rank={rank} />
-            </CarouselItem>
-          ))}
-        </Carousel>
+        <Row title="Top 10 truyện tuần này" action={more("/xep-hang")} gap="gap-2">
+          {hot.slice(0, 10).map(({ story, rank }) => <Top10Card key={story.id} rank={rank} story={story} />)}
+        </Row>
       )}
 
-      {/* Ba bảng xếp hạng đặt cạnh nhau */}
-      <section className="grid gap-4 md:grid-cols-3">
-        <RankColumn title="Đọc nhiều tuần" link="/xep-hang?loai=views&ky=week" items={hot.slice(0, 5)} value={(v) => `${formatNumber(v)} lượt đọc`} />
-        <RankColumn title="Đánh giá cao" link="/xep-hang?loai=rating" items={topRated} value={(v) => `${v.toFixed(1)} điểm`} />
-        <RankColumn title="Theo dõi nhiều tháng" link="/xep-hang?loai=follows&ky=month" items={topFollowed} value={(v) => `${formatNumber(v)} người theo dõi`} />
-      </section>
+      <Row title="Mới cập nhật" action={more("/?sapxep=updated")}>
+        {updated.map((s) => (
+          <PosterCard key={s.id} story={s} badge={s.latestChapterNumber ? `Ch. ${s.latestChapterNumber}` : undefined}
+            note={s.latestChapterTitle ? `Chương ${s.latestChapterNumber}: ${s.latestChapterTitle}, ${timeAgo(s.updatedAt)}` : undefined} />
+        ))}
+      </Row>
 
-      <div className="grid gap-8 lg:grid-cols-[1fr_300px]">
-        {/* Mới cập nhật: dạng bảng như các trang đọc truyện quen thuộc */}
-        <section>
-          <div className="mb-3 flex items-baseline justify-between">
-            <h2 className="font-story text-xl font-semibold">Mới cập nhật</h2>
-            <Link to="/?sapxep=updated" className="text-sm text-blue-700 hover:underline">Xem thêm</Link>
-          </div>
-          <ul className="divide-y rounded-xl border bg-white">
-            {updated.map((s) => (
-              <li key={s.id} className="flex items-center gap-3 px-3 py-2.5">
-                <CoverImage src={s.coverUrl} title={s.title} className="h-14 w-10 shrink-0 rounded-sm" small />
-                <div className="min-w-0 flex-1">
-                  <Link to={`/truyen/${s.id}`} className="block truncate font-story font-semibold hover:text-blue-700">{s.title}</Link>
-                  <p className="truncate text-xs text-gray-500">{s.genres.map((g) => g.name).join(", ") || s.author}</p>
-                </div>
-                {s.latestChapterNumber ? (
-                  <Link to={`/truyen/${s.id}/chuong/${s.latestChapterNumber}`} className="hidden w-48 shrink-0 truncate text-sm text-gray-700 hover:text-blue-700 sm:block">
-                    Chương {s.latestChapterNumber}{s.latestChapterTitle ? `: ${s.latestChapterTitle}` : ""}
-                  </Link>
-                ) : (
-                  <span className="hidden w-48 text-sm text-gray-400 sm:block">Chưa có chương</span>
-                )}
-                <span className="w-20 shrink-0 text-right text-xs text-gray-500">{timeAgo(s.updatedAt)}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
+      {topRated.length > 0 && (
+        <Row title="Được đánh giá cao" action={more("/xep-hang?loai=rating")}>
+          {topRated.map(({ story }) => <PosterCard key={story.id} story={story} />)}
+        </Row>
+      )}
 
-        <aside className="space-y-8">
-          {genres.length > 0 && (
-            <section>
-              <h2 className="mb-3 font-story text-xl font-semibold">Thể loại</h2>
-              <div className="flex flex-wrap gap-2">
-                {genres.map((g) => (
-                  <Link key={g.id} to={`/?theloai=${g.id}`} className="rounded-full border bg-white px-3 py-1 text-sm text-gray-700 hover:border-blue-400 hover:text-blue-700">
-                    {g.name}
-                  </Link>
-                ))}
-              </div>
-            </section>
-          )}
-          <section className="rounded-xl bg-ink p-5 text-white">
-            <h2 className="font-story text-lg font-semibold">Đọc không giới hạn</h2>
-            <p className="mt-1 text-sm text-white/75">Gói đọc tháng mở khóa toàn bộ chương trả phí, quét mã chuyển khoản là dùng được ngay.</p>
-            <Link to="/goi-doc" className="mt-4 inline-block rounded-full bg-lamp px-4 py-1.5 text-sm font-semibold text-ink hover:bg-amber-300">Xem gói đọc</Link>
-          </section>
-        </aside>
-      </div>
+      {byGenre.map(({ genre, items }) => (
+        <Row key={genre.id} title={`Truyện ${genre.name}`} action={more(`/?theloai=${genre.id}`)}>
+          {items.map((s) => <PosterCard key={s.id} story={s} />)}
+        </Row>
+      ))}
 
       {completed.length > 0 && (
-        <Carousel title="Đã hoàn thành" action={<Link to="/?tinhtrang=Completed" className="text-sm text-blue-700 hover:underline">Xem thêm</Link>}>
-          {completed.map((s) => (
-            <CarouselItem key={s.id}>
-              <StoryCard story={s} />
-            </CarouselItem>
-          ))}
-        </Carousel>
+        <Row title="Đã hoàn thành, đọc một mạch" action={more("/?tinhtrang=Completed")}>
+          {completed.map((s) => <PosterCard key={s.id} story={s} badge="Full" />)}
+        </Row>
       )}
+
+      <section className="grid gap-6 rounded-2xl bg-gradient-to-br from-[#1b1f33] to-[#141729] p-6 ring-1 ring-white/5 md:grid-cols-[1fr_auto] md:items-center">
+        <div>
+          <h2 className="font-story text-2xl font-semibold text-white">Đọc không giới hạn mọi chương trả phí</h2>
+          <p className="mt-1 text-white/65">Đăng ký gói đọc, quét mã chuyển khoản là mở khóa ngay. Đổi gói vẫn giữ số ngày còn lại.</p>
+          {genres.length > 0 && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {genres.map((g) => (
+                <Link key={g.id} to={`/?theloai=${g.id}`} className="rounded-full border border-white/15 px-3 py-1 text-sm text-white/75 transition hover:border-lamp hover:text-white">{g.name}</Link>
+              ))}
+            </div>
+          )}
+        </div>
+        <Link to="/goi-doc" className="justify-self-start rounded-md bg-lamp px-6 py-3 font-semibold text-ink transition hover:bg-amber-300 md:justify-self-end">Xem các gói đọc</Link>
+      </section>
     </div>
   );
 }
 
-function RankColumn({ title, link, items, value }: { title: string; link: string; items: RankingItem[]; value: (v: number) => string }) {
+// Khung chờ tải: giữ đúng bố cục để trang không bị nhảy
+function HomeSkeleton() {
   return (
-    <section className="rounded-xl border bg-white p-4">
-      <div className="mb-2 flex items-baseline justify-between">
-        <h2 className="font-story text-lg font-semibold">{title}</h2>
-        <Link to={link} className="text-xs text-blue-700 hover:underline">Xem tất cả</Link>
-      </div>
-      {items.length === 0 ? (
-        <p className="py-4 text-sm text-gray-500">Chưa có dữ liệu</p>
-      ) : (
-        <ol>
-          {items.map((item) => (
-            <li key={item.story.id}>
-              <Link to={`/truyen/${item.story.id}`} className="flex items-center gap-3 rounded-lg px-1 py-2 hover:bg-gray-50">
-                <span className={`w-5 shrink-0 text-center font-story text-lg font-bold ${item.rank <= 3 ? "text-lamp" : "text-gray-300"}`}>{item.rank}</span>
-                <CoverImage src={item.story.coverUrl} title={item.story.title} className="h-12 w-9 shrink-0 rounded-sm" small />
-                <span className="min-w-0">
-                  <span className="block truncate text-sm font-medium">{item.story.title}</span>
-                  <span className="block text-xs text-gray-500">{value(item.value)}</span>
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ol>
-      )}
-    </section>
+    <div aria-busy="true" aria-label="Đang tải">
+      <div className="relative left-1/2 -mt-[5.5rem] h-[34rem] w-screen -translate-x-1/2 animate-pulse bg-[#161a2b]" />
+      {[0, 1].map((r) => (
+        <div key={r} className="mt-10">
+          <div className="h-6 w-48 animate-pulse rounded bg-gray-100" />
+          <div className="mt-4 flex gap-3 overflow-hidden">
+            {Array.from({ length: 7 }, (_, i) => <div key={i} className="aspect-3/4 w-32 shrink-0 animate-pulse rounded bg-gray-100 sm:w-40" />)}
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 

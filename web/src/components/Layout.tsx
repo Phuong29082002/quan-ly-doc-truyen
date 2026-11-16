@@ -60,6 +60,18 @@ export default function Layout() {
     setUserMenu(false);
   }
 
+  // Giao diện tối cho trang người đọc; trang chủ và trang truyện có đầu trang trong suốt nằm trên ảnh nền
+  const isAdminPage = location.pathname.startsWith("/admin");
+  const immersive = location.pathname === "/" ? !location.search : /^\/truyen\/\d+$/.test(location.pathname);
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 40);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+  const solidHeader = !immersive || scrolled || menuOpen;
+
   function handleLogout() {
     logout();
     navigate("/");
@@ -78,8 +90,12 @@ export default function Layout() {
   );
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-30 bg-ink text-white shadow-[0_1px_0_rgb(255_255_255/0.06)]">
+    <div className={`flex min-h-screen flex-col overflow-x-clip ${isAdminPage ? "" : "cinema"}`}>
+      <header className={`sticky top-0 z-30 text-white transition-colors duration-300 ${
+        solidHeader
+          ? isAdminPage ? "bg-ink shadow-[0_1px_0_rgb(255_255_255/0.06)]" : "bg-[#0f1220]/95 shadow-[0_1px_0_rgb(255_255_255/0.06)] backdrop-blur"
+          : "bg-gradient-to-b from-black/75 to-transparent"
+      }`}>
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-5 px-4">
           <Link to="/" className="flex shrink-0 items-center gap-2">
             <LampMark />
@@ -146,7 +162,7 @@ export default function Layout() {
         <Outlet />
       </main>
 
-      <footer className="mt-10 bg-ink text-white/70">
+      <footer className={`mt-10 text-white/70 ${isAdminPage ? "bg-ink" : "border-t border-white/5 bg-[#0b0d18]"}`}>
         <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-6 text-sm sm:flex-row sm:items-center sm:justify-between">
           <span className="flex items-center gap-2 text-white"><LampMark /> <span className="font-story">Đọc Truyện</span></span>
           <span className="flex flex-wrap items-center gap-3">

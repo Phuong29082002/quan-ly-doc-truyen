@@ -3,12 +3,14 @@ import { Link, useNavigate, useParams } from "react-router";
 import { followApi, type FollowStatus } from "../api/community";
 import { recommendationApi, type Recommendation } from "../api/discovery";
 import RatingPanel from "../components/RatingPanel";
-import RecommendationRow from "../components/RecommendationRow";
+import PosterCard from "../cinema/PosterCard";
+import Row from "../cinema/Row";
 import Stars from "../components/Stars";
 import { storyApi } from "../api/catalog";
 import { assetUrl, getErrorMessage } from "../api/client";
 import type { StoryDetail } from "../api/types";
 import CoverImage from "../components/CoverImage";
+import { colorOf } from "../utils/coverColor";
 import StatusBadge from "../components/StatusBadge";
 import AccessBadge from "../components/AccessBadge";
 import { useAuth } from "../auth/useAuth";
@@ -60,10 +62,18 @@ export default function StoryDetailPage() {
   return (
     <div>
       {/* Đầu trang truyện: nền mực nối với thanh điều hướng */}
-      <section className="relative -mx-4 -mt-6 overflow-hidden bg-ink px-4 pb-8 pt-4 text-white sm:rounded-b-2xl">
-        {assetUrl(story.coverUrl) && (
-          <img src={assetUrl(story.coverUrl)!} alt="" aria-hidden className="pointer-events-none absolute inset-0 h-full w-full scale-110 object-cover opacity-25 blur-2xl" />
-        )}
+      {/* Đầu trang tràn màn hình, nằm dưới thanh điều hướng trong suốt */}
+      <section className="relative left-1/2 -mt-[5.5rem] w-screen -translate-x-1/2 overflow-hidden text-white">
+        <div className="animate-billboard absolute inset-0">
+          {assetUrl(story.coverUrl) ? (
+            <img src={assetUrl(story.coverUrl)!} alt="" aria-hidden className="h-full w-full scale-110 object-cover opacity-40 blur-xl" />
+          ) : (
+            <div className="h-full w-full" style={{ background: `radial-gradient(55% 90% at 20% 30%, ${colorOf(story.title)}, transparent 75%)` }} />
+          )}
+        </div>
+        <div className="absolute inset-0 bg-gradient-to-r from-[#0f1220]/40 via-[#0f1220]/70 to-[#0f1220]" />
+        <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#0f1220] to-transparent" />
+        <div className="relative mx-auto max-w-6xl px-4 pb-10 pt-24">
         <nav aria-label="Đường dẫn" className="relative mb-4 flex flex-wrap items-center gap-1.5 text-xs text-white/60">
           <Link to="/" className="hover:text-white">Trang chủ</Link>
           {story.genres[0] && (<><span aria-hidden>/</span><Link to={`/?theloai=${story.genres[0].id}`} className="hover:text-white">{story.genres[0].name}</Link></>)}
@@ -71,10 +81,10 @@ export default function StoryDetailPage() {
           <span className="truncate text-white/85">{story.title}</span>
         </nav>
         <div className="relative flex flex-col gap-6 sm:flex-row">
-          <CoverImage src={story.coverUrl} title={story.title} book className="aspect-3/4 w-44 shrink-0 self-center sm:self-start" />
+          <CoverImage src={story.coverUrl} title={story.title} book className="animate-rise aspect-3/4 w-44 shrink-0 self-center shadow-[0_30px_60px_-10px_rgb(0_0_0/0.8)] sm:w-52 sm:self-start" />
 
           <div className="min-w-0 flex-1">
-            <h1 className="font-story text-3xl font-semibold leading-tight">{story.title}</h1>
+            <h1 className="font-story text-4xl font-bold leading-tight drop-shadow-lg md:text-5xl">{story.title}</h1>
             <p className="mt-1 text-white/70">{story.author}</p>
             <div className="mt-3 flex flex-wrap gap-1.5">
               {story.genres.map((g) => (
@@ -118,9 +128,10 @@ export default function StoryDetailPage() {
             </div>
           </div>
         </div>
+        </div>
       </section>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_320px]">
+      <div className="mt-2 grid gap-6 lg:grid-cols-[1fr_320px]">
         <StoryTabs story={story} currentChapter={myProgress?.chapterNumber} />
 
         <aside className="space-y-6">
@@ -197,10 +208,11 @@ function SimilarStories({ storyId }: { storyId: number }) {
   const items = state?.storyId === storyId ? state.items : [];
   if (items.length === 0) return null;
   return (
-    <section className="mt-10">
-      <h2 className="mb-4 font-story text-xl font-semibold">Có thể bạn cũng thích</h2>
-      <RecommendationRow items={items} />
-    </section>
+    <div className="mt-10">
+      <Row title="Có thể bạn cũng thích">
+        {items.map(({ story, reason }) => <PosterCard key={story.id} story={story} note={reason} />)}
+      </Row>
+    </div>
   );
 }
 

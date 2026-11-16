@@ -35,9 +35,9 @@ interface ReaderSettings {
 const DEFAULT_SETTINGS: ReaderSettings = { fontSize: 19, theme: "light", serif: true, lineHeight: 1.9, rate: 1 };
 
 const THEMES: Record<ReaderTheme, { label: string; panel: string; swatch: string }> = {
-  light: { label: "Sáng", panel: "bg-white text-gray-900", swatch: "bg-white" },
+  light: { label: "Sáng", panel: "bg-[#fffdf8] text-[#1b2030] border-[#e7e3d8]", swatch: "bg-[#fffdf8]" },
   sepia: { label: "Giấy cũ", panel: "bg-[#f6efe0] text-[#3b2f1e] border-[#e6dac0]", swatch: "bg-[#f6efe0]" },
-  dark: { label: "Tối", panel: "bg-gray-900 text-gray-200 border-gray-700", swatch: "bg-gray-900" },
+  dark: { label: "Tối", panel: "bg-[#151827] text-[#d9dce6] border-[#2a2f45]", swatch: "bg-[#151827]" },
 };
 
 function loadSettings(): ReaderSettings {
