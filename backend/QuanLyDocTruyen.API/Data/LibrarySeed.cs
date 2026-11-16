@@ -326,7 +326,7 @@ public static class LibrarySeed
             """));
     }
 
-    private static async Task<Dictionary<string, int>> EnsureGenresAsync(AppDbContext db, params string[] names)
+    internal static async Task<Dictionary<string, int>> EnsureGenresAsync(AppDbContext db, params string[] names)
     {
         foreach (var name in names)
             if (!await db.Genres.AnyAsync(g => g.Name == name))
@@ -335,7 +335,7 @@ public static class LibrarySeed
         return await db.Genres.Where(g => names.Contains(g.Name)).ToDictionaryAsync(g => g.Name, g => g.Id);
     }
 
-    private static async Task AddAsync(AppDbContext db, Story story, int[] genreIds, params (string Title, string Content)[] chapters)
+    internal static async Task AddAsync(AppDbContext db, Story story, int[] genreIds, params (string Title, string Content)[] chapters)
     {
         if (await db.Stories.AnyAsync(s => s.Title == story.Title)) return;
 

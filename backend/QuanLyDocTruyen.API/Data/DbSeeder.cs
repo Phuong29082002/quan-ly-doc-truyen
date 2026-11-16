@@ -98,6 +98,7 @@ public static class DbSeeder
         await SeedSprint3Async(db, hasher);
         await SeedSprint4Async(db, hasher);
         await LibrarySeed.SeedAsync(db);
+        await OriginalSeed.SeedAsync(db);
         await SeedSprint5Async(db);
     }
 
