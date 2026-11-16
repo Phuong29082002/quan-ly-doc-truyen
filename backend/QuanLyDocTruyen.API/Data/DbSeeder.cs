@@ -97,6 +97,7 @@ public static class DbSeeder
         await SeedIllustratedStoryAsync(db);
         await SeedSprint3Async(db, hasher);
         await SeedSprint4Async(db, hasher);
+        await LibrarySeed.SeedAsync(db);
         await SeedSprint5Async(db);
     }
 
