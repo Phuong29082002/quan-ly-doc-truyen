@@ -1,7 +1,9 @@
 using System.Security.Claims;
 using System.Text;
+using Google.Apis.Auth;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
@@ -19,23 +21,46 @@ public interface IAuthService
     Task<UserDto> GetMeAsync(int userId);
     Task<UserDto> UpdateProfileAsync(int userId, UpdateProfileRequest req);
     Task ChangePasswordAsync(int userId, ChangePasswordRequest req);
+    // PB57: Google login
+    Task<AuthResponse> GoogleLoginAsync(string idToken);
+    // Quên mật khẩu
+    Task ForgotPasswordAsync(string email);
+    Task ResetPasswordAsync(ResetPasswordRequest req);
 }
 
-public class AuthService(
-    AppDbContext db,
-    IPasswordHasher<User> hasher,
-    IOptions<JwtOptions> options) : IAuthService
+public class AuthService : IAuthService
 {
-    private readonly JwtOptions _jwt = options.Value;
+    private readonly AppDbContext _db;
+    private readonly IPasswordHasher<User> _hasher;
+    private readonly JwtOptions _jwt;
+    private readonly IMemoryCache _cache;
+    private readonly IEmailService _emailService;
+    private readonly string _googleClientId;
+
+    public AuthService(
+        AppDbContext db,
+        IPasswordHasher<User> hasher,
+        IOptions<JwtOptions> jwtOptions,
+        IMemoryCache cache,
+        IEmailService emailService,
+        IConfiguration configuration)
+    {
+        _db = db;
+        _hasher = hasher;
+        _jwt = jwtOptions.Value;
+        _cache = cache;
+        _emailService = emailService;
+        _googleClientId = configuration["Google:ClientId"] ?? "";
+    }
 
     public async Task<AuthResponse> RegisterAsync(RegisterRequest req)
     {
         var username = req.Username.Trim();
         var email = req.Email.Trim().ToLowerInvariant();
 
-        if (await db.Users.AnyAsync(u => u.Username == username))
+        if (await _db.Users.AnyAsync(u => u.Username == username))
             throw new ConflictException("Tên đăng nhập đã tồn tại");
-        if (await db.Users.AnyAsync(u => u.Email == email))
+        if (await _db.Users.AnyAsync(u => u.Email == email))
             throw new ConflictException("Email đã được sử dụng");
 
         var user = new User
@@ -44,10 +69,10 @@ public class AuthService(
             Email = email,
             DisplayName = string.IsNullOrWhiteSpace(req.DisplayName) ? username : req.DisplayName.Trim()
         };
-        user.PasswordHash = hasher.HashPassword(user, req.Password);
+        user.PasswordHash = _hasher.HashPassword(user, req.Password);
 
-        db.Users.Add(user);
-        await db.SaveChangesAsync();
+        _db.Users.Add(user);
+        await _db.SaveChangesAsync();
 
         return CreateAuthResponse(user);
     }
@@ -57,10 +82,10 @@ public class AuthService(
         var login = req.Login.Trim();
         var loginEmail = login.ToLowerInvariant();
 
-        var user = await db.Users.FirstOrDefaultAsync(u => u.Username == login || u.Email == loginEmail);
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Username == login || u.Email == loginEmail);
 
         if (user is null ||
-            hasher.VerifyHashedPassword(user, user.PasswordHash, req.Password) == PasswordVerificationResult.Failed)
+            _hasher.VerifyHashedPassword(user, user.PasswordHash, req.Password) == PasswordVerificationResult.Failed)
             throw new UnauthorizedException("Sai tên đăng nhập hoặc mật khẩu");
 
         if (user.Status == UserStatus.Suspended)
@@ -71,7 +96,7 @@ public class AuthService(
 
     public async Task<UserDto> GetMeAsync(int userId)
     {
-        var user = await db.Users.FindAsync(userId)
+        var user = await _db.Users.FindAsync(userId)
             ?? throw new NotFoundException("Không tìm thấy tài khoản");
         return ToDto(user);
     }
@@ -79,24 +104,122 @@ public class AuthService(
     // PB04: đổi tên hiển thị
     public async Task<UserDto> UpdateProfileAsync(int userId, UpdateProfileRequest req)
     {
-        var user = await db.Users.FindAsync(userId) ?? throw new NotFoundException("Không tìm thấy tài khoản");
+        var user = await _db.Users.FindAsync(userId) ?? throw new NotFoundException("Không tìm thấy tài khoản");
         user.DisplayName = req.DisplayName.Trim();
-        await db.SaveChangesAsync();
+        await _db.SaveChangesAsync();
         return ToDto(user);
     }
 
     // PB04: đổi mật khẩu (phải nhập đúng mật khẩu cũ)
     public async Task ChangePasswordAsync(int userId, ChangePasswordRequest req)
     {
-        var user = await db.Users.FindAsync(userId) ?? throw new NotFoundException("Không tìm thấy tài khoản");
+        var user = await _db.Users.FindAsync(userId) ?? throw new NotFoundException("Không tìm thấy tài khoản");
 
-        if (hasher.VerifyHashedPassword(user, user.PasswordHash, req.CurrentPassword) == PasswordVerificationResult.Failed)
+        if (_hasher.VerifyHashedPassword(user, user.PasswordHash, req.CurrentPassword) == PasswordVerificationResult.Failed)
             throw new BadRequestException("Mật khẩu hiện tại không đúng");
         if (req.CurrentPassword == req.NewPassword)
             throw new BadRequestException("Mật khẩu mới phải khác mật khẩu hiện tại");
 
-        user.PasswordHash = hasher.HashPassword(user, req.NewPassword);
-        await db.SaveChangesAsync();
+        user.PasswordHash = _hasher.HashPassword(user, req.NewPassword);
+        await _db.SaveChangesAsync();
+    }
+
+    // PB57: Google Login
+    public async Task<AuthResponse> GoogleLoginAsync(string idToken)
+    {
+        // 1. Xác thực idToken với Google
+        var settings = new GoogleJsonWebSignature.ValidationSettings
+        {
+            Audience = new[] { _googleClientId }
+        };
+
+        GoogleJsonWebSignature.Payload payload;
+        try
+        {
+            payload = await GoogleJsonWebSignature.ValidateAsync(idToken, settings);
+        }
+        catch
+        {
+            throw new UnauthorizedException("Token Google không hợp lệ");
+        }
+
+        var email = payload.Email.ToLowerInvariant();
+        var googleId = payload.Subject;
+
+        // 2. Tìm user theo GoogleId hoặc Email
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.GoogleId == googleId || u.Email == email);
+
+        if (user is null)
+        {
+            // Tạo user mới từ tài khoản Google
+            user = new User
+            {
+                Username = email.Split('@')[0] + "_" + Guid.NewGuid().ToString("N")[..6],
+                Email = email,
+                DisplayName = payload.Name ?? email,
+                GoogleId = googleId,
+                EmailConfirmed = true,
+                PasswordHash = ""
+            };
+            _db.Users.Add(user);
+            await _db.SaveChangesAsync();
+        }
+        else
+        {
+            // Liên kết tài khoản hiện có với Google nếu chưa liên kết
+            if (string.IsNullOrEmpty(user.GoogleId))
+            {
+                user.GoogleId = googleId;
+                user.EmailConfirmed = true;
+                await _db.SaveChangesAsync();
+            }
+
+            if (user.Status == UserStatus.Suspended)
+                throw new ForbiddenException("Tài khoản đã bị tạm ngừng");
+        }
+
+        return CreateAuthResponse(user);
+    }
+
+    // Quên mật khẩu: gửi OTP qua email
+    public async Task ForgotPasswordAsync(string email)
+    {
+        email = email.Trim().ToLowerInvariant();
+
+        // Tìm user - không tiết lộ email có tồn tại hay không (bảo mật)
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email);
+        if (user is null) return;
+
+        // Tạo OTP 6 chữ số
+        var otp = Random.Shared.Next(100000, 999999).ToString();
+
+        // Lưu vào MemoryCache với TTL 10 phút
+        var cacheKey = $"otp:{email}";
+        _cache.Set(cacheKey, otp, TimeSpan.FromMinutes(10));
+
+        // Gửi email chứa OTP
+        await _emailService.SendOtpAsync(email, otp);
+    }
+
+    // Đặt lại mật khẩu bằng OTP
+    public async Task ResetPasswordAsync(ResetPasswordRequest req)
+    {
+        var email = req.Email.Trim().ToLowerInvariant();
+        var cacheKey = $"otp:{email}";
+
+        // Kiểm tra OTP
+        if (!_cache.TryGetValue(cacheKey, out string? savedOtp) || savedOtp != req.Otp)
+            throw new BadRequestException("Mã OTP không đúng hoặc đã hết hạn");
+
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email)
+            ?? throw new NotFoundException("Không tìm thấy tài khoản");
+
+        // Cập nhật mật khẩu mới
+        user.PasswordHash = _hasher.HashPassword(user, req.NewPassword);
+        await _db.SaveChangesAsync();
+
+        // Xóa OTP sau khi sử dụng thành công
+        _cache.Remove(cacheKey);
     }
 
     private AuthResponse CreateAuthResponse(User user)

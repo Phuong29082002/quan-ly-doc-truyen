@@ -52,3 +52,29 @@ public class ChangePasswordRequest
     [StringLength(100, MinimumLength = 6, ErrorMessage = "Mật khẩu mới tối thiểu 6 ký tự")]
     public string NewPassword { get; set; } = "";
 }
+
+// PB57: Google Authentication
+
+public class GoogleLoginRequest
+{
+    [Required]
+    public string IdToken { get; set; } = "";
+}
+
+public class ForgotPasswordRequest
+{
+    [Required, EmailAddress]
+    public string Email { get; set; } = "";
+}
+
+public class ResetPasswordRequest
+{
+    [Required, EmailAddress]
+    public string Email { get; set; } = "";
+
+    [Required]
+    public string Otp { get; set; } = "";
+
+    [Required, StringLength(100, MinimumLength = 6)]
+    public string NewPassword { get; set; } = "";
+}

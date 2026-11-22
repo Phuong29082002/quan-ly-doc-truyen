@@ -1,4 +1,4 @@
-namespace QuanLyDocTruyen.API.Entities;
+﻿namespace QuanLyDocTruyen.API.Entities;
 
 public class User
 {
@@ -10,4 +10,7 @@ public class User
     public UserRole Role { get; set; } = UserRole.Member;
     public UserStatus Status { get; set; } = UserStatus.Active;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    //Google Login
+    public string? GoogleId { get; set; }          // null = đăng ký thường
+    public bool EmailConfirmed { get; set; } = false;
 }

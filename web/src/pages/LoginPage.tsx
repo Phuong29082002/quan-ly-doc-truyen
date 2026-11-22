@@ -1,21 +1,85 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, Navigate, useLocation } from "react-router";
 import { getErrorMessage } from "../api/client";
 import { useAuth } from "../auth/useAuth";
 import FormField from "../components/FormField";
 
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (config: {
+            client_id: string;
+            callback: (response: { credential: string }) => void;
+          }) => void;
+          renderButton: (parent: HTMLElement, options: object) => void;
+          prompt: () => void;
+        };
+      };
+    };
+  }
+}
+
+const GOOGLE_CLIENT_ID =
+  "902770820195-8vhau1co9oh8imm74kdreb65hqa711h5.apps.googleusercontent.com";
+
 // PB02: đăng nhập
 export default function LoginPage() {
-  const { user, login } = useAuth();
+  const { user, login, googleLogin } = useAuth();
   const location = useLocation();
   const from = (location.state as { from?: string } | null)?.from ?? "/";
 
   const [form, setForm] = useState({ login: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const googleBtnRef = useRef<HTMLDivElement>(null);
 
   // Đăng nhập thành công (hoặc đã đăng nhập sẵn) -> quay về trang trước đó
   if (user) return <Navigate to={from} replace />;
+
+  // Khởi tạo Google Sign-In button
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  useEffect(() => {
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.onload = () => {
+      if (window.google && googleBtnRef.current) {
+        window.google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: handleGoogleResponse,
+        });
+        window.google.accounts.id.renderButton(googleBtnRef.current, {
+          type: "standard",
+          theme: "outline",
+          size: "large",
+          width: "100%",
+          text: "signin_with",
+          locale: "vi",
+        });
+      }
+    };
+    document.head.appendChild(script);
+    return () => {
+      document.head.removeChild(script);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function handleGoogleResponse(response: { credential: string }) {
+    setError("");
+    setGoogleLoading(true);
+    try {
+      await googleLogin(response.credential);
+    } catch (err) {
+      setError(getErrorMessage(err, "Đăng nhập Google thất bại"));
+    } finally {
+      setGoogleLoading(false);
+    }
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -40,7 +104,36 @@ export default function LoginPage() {
     <div className="max-w-sm mx-auto bg-white border rounded-lg p-6 mt-6">
       <h1 className="text-2xl font-bold mb-6 text-center">Đăng nhập</h1>
 
-      {error && <div className="mb-4 rounded bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">{error}</div>}
+      {error && (
+        <div className="mb-4 rounded bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
+      {/* Google Sign-In Button */}
+      <div className="mb-4">
+        {googleLoading ? (
+          <div className="w-full flex items-center justify-center gap-2 border border-gray-300 rounded py-2 text-sm text-gray-600">
+            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+            </svg>
+            Đang xác thực Google...
+          </div>
+        ) : (
+          <div ref={googleBtnRef} className="w-full" />
+        )}
+      </div>
+
+      {/* Đường phân cách */}
+      <div className="relative my-4">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-gray-200" />
+        </div>
+        <div className="relative flex justify-center text-xs uppercase">
+          <span className="bg-white px-2 text-gray-400">hoặc đăng nhập bằng mật khẩu</span>
+        </div>
+      </div>
 
       <form onSubmit={handleSubmit} noValidate>
         <FormField
@@ -58,6 +151,14 @@ export default function LoginPage() {
           value={form.password}
           onChange={(e) => setForm({ ...form, password: e.target.value })}
         />
+
+        {/* Link quên mật khẩu */}
+        <div className="mb-4 text-right">
+          <Link to="/quen-mat-khau" className="text-sm text-blue-600 hover:underline">
+            Quên mật khẩu?
+          </Link>
+        </div>
+
         <button
           type="submit"
           disabled={loading}

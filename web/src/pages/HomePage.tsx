@@ -139,3 +139,4 @@ function SearchBox({ initial, onSearch }: { initial: string; onSearch: (q: strin
     </form>
   );
 }
+

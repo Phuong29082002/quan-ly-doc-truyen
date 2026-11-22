@@ -37,6 +37,8 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
       register: async (data: RegisterData) => handleAuth(await authApi.register(data)),
       logout,
       updateUser,
+      // PB57: Đăng nhập bằng Google
+      googleLogin: async (idToken: string) => handleAuth(await authApi.googleLogin(idToken)),
     }),
     [user, handleAuth, logout, updateUser],
   );

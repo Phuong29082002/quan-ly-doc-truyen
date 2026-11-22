@@ -9,6 +9,8 @@ export interface AuthContextValue {
   logout: () => void;
   /** Cập nhật user trong bộ nhớ + localStorage (PB04) */
   updateUser: (user: User) => void;
+  /** PB57: Đăng nhập bằng Google */
+  googleLogin: (idToken: string) => Promise<User>;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
