@@ -60,6 +60,7 @@ builder.Services.AddScoped<IImageUploadService, ImageUploadService>();
 builder.Services.AddScoped<IReadingService, ReadingService>();
 builder.Services.AddScoped<IBadgeService, BadgeService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
+builder.Services.AddScoped<ICoinService, CoinService>();
 builder.Services.Configure<VnPayOptions>(builder.Configuration.GetSection("VnPay"));
 builder.Services.Configure<PaymentOptions>(builder.Configuration.GetSection("Payment"));
 builder.Services.Configure<BankQrOptions>(builder.Configuration.GetSection("BankQr"));

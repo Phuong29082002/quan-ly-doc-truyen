@@ -5,11 +5,11 @@ using QuanLyDocTruyen.API.Entities;
 namespace QuanLyDocTruyen.API.Common;
 
 /// <summary>Nguồn quyền đọc của một người dùng đối với một truyện</summary>
-public enum ReadAccess { None, Package, Purchased }
+public enum ReadAccess { None, Package, Purchased, UnlockedWithCoins }
 
 /// <summary>
-/// Quy tắc quyền đọc (PB16, PB22): chương miễn phí theo chính sách truyện,
-/// hoặc người dùng có gói đọc còn hạn bao phủ truyện, hoặc đã mua riêng truyện.
+/// Quy tắc quyền đọc (PB16, PB22, PB58): chương miễn phí theo chính sách truyện,
+/// hoặc người dùng có gói đọc còn hạn bao phủ truyện, hoặc đã mua riêng truyện, hoặc mở khóa bằng xu.
 /// </summary>
 public static class AccessRules
 {
@@ -20,6 +20,9 @@ public static class AccessRules
             AccessType.Mixed => chapterIsFree || chapterNumber <= freeChapterCount,
             _ => chapterIsFree
         };
+
+    public static async Task<bool> IsChapterUnlockedWithCoinsAsync(AppDbContext db, int userId, int chapterId) =>
+        await db.ChapterUnlocks.AnyAsync(u => u.UserId == userId && u.ChapterId == chapterId);
 
     /// <summary>
     /// Quyền đọc trả phí của người dùng với truyện. Truyện đã mua giữ quyền vĩnh viễn (kể cả khi gói hết hạn);

@@ -15,4 +15,13 @@ public class User
     public string? StatusReason { get; set; }
     public DateTime? StatusChangedAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    /// <summary>PB58: số dư xu hiện tại (mặc định tặng 50 xu chào mừng)</summary>
+    public int Coins { get; set; } = 50;
+
+    /// <summary>PB58: ngày điểm danh gần nhất (giờ UTC)</summary>
+    public DateTime? LastCheckInAt { get; set; }
+
+    /// <summary>PB58: chuỗi ngày điểm danh liên tục</summary>
+    public int ConsecutiveCheckInDays { get; set; } = 0;
 }

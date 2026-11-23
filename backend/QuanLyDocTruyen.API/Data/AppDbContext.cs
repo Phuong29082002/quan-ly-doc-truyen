@@ -26,6 +26,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Badge> Badges => Set<Badge>();
     public DbSet<UserBadge> UserBadges => Set<UserBadge>();
     public DbSet<UserStreak> UserStreaks => Set<UserStreak>();
+    public DbSet<CoinTransaction> CoinTransactions => Set<CoinTransaction>();
+    public DbSet<ChapterUnlock> ChapterUnlocks => Set<ChapterUnlock>();
+    public DbSet<DailyMissionProgress> DailyMissionProgresses => Set<DailyMissionProgress>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder b)
     {
@@ -58,6 +61,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         m.Entity<Genre>().HasIndex(x => x.Name).IsUnique();
         m.Entity<Chapter>().HasIndex(x => new { x.StoryId, x.Number }).IsUnique();
         m.Entity<ChapterView>().HasIndex(x => x.ViewedAt);
+
+        m.Entity<ChapterUnlock>().HasIndex(x => new { x.UserId, x.ChapterId }).IsUnique();
+        m.Entity<CoinTransaction>().HasIndex(x => new { x.UserId, x.CreatedAt });
+        m.Entity<DailyMissionProgress>().HasIndex(x => new { x.UserId, x.Date, x.MissionKey }).IsUnique();
 
         m.Entity<Comment>()
             .HasOne(x => x.Parent).WithMany(x => x.Replies).HasForeignKey(x => x.ParentId);

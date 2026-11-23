@@ -32,10 +32,11 @@ public class ChapterService(AppDbContext db, IReadingService reading) : IChapter
         if (!isFree && !isAdmin)
         {
             if (userId is null)
-                throw PaidChapterDenied("LoginRequired", "Vui lòng đăng nhập để đọc chương trả phí", story, chapter.Number);
+                throw PaidChapterDenied("LoginRequired", "Vui lòng đăng nhập để đọc chương trả phí", story, chapter.Number, chapter.Id);
 
-            if (await AccessRules.GetUserAccessAsync(db, userId.Value, storyId, now) == ReadAccess.None)
-                throw PaidChapterDenied("PurchaseRequired", "Bạn cần đăng ký gói đọc hoặc mua truyện để đọc chương này", story, chapter.Number);
+            var isUnlockedWithCoins = await AccessRules.IsChapterUnlockedWithCoinsAsync(db, userId.Value, chapter.Id);
+            if (!isUnlockedWithCoins && await AccessRules.GetUserAccessAsync(db, userId.Value, storyId, now) == ReadAccess.None)
+                throw PaidChapterDenied("PurchaseRequired", "Bạn cần đăng ký gói đọc, mua truyện hoặc dùng xu mở khóa để đọc chương này", story, chapter.Number, chapter.Id);
         }
 
         var prev = await db.Chapters
@@ -157,8 +158,8 @@ public class ChapterService(AppDbContext db, IReadingService reading) : IChapter
         await transaction.CommitAsync();
     }
 
-    // 403 kèm code/price để Web biết hiển thị yêu cầu đăng nhập hay mua gói/mua truyện
-    private static ForbiddenException PaidChapterDenied(string code, string message, Story story, int chapterNumber) =>
+    // 403 kèm code/price/coinPrice/chapterId để Web biết hiển thị yêu cầu đăng nhập hay mua gói/mua truyện/dùng xu mở khóa
+    private static ForbiddenException PaidChapterDenied(string code, string message, Story story, int chapterNumber, int chapterId) =>
         new(message)
         {
             Extensions =
@@ -167,7 +168,9 @@ public class ChapterService(AppDbContext db, IReadingService reading) : IChapter
                 ["storyId"] = story.Id,
                 ["storyTitle"] = story.Title,
                 ["chapterNumber"] = chapterNumber,
-                ["price"] = story.Price
+                ["chapterId"] = chapterId,
+                ["price"] = story.Price,
+                ["coinPrice"] = 5
             }
         };
 

@@ -8,6 +8,7 @@
 - Mobile: Android (Kotlin, Jetpack Compose, Retrofit)
 - CSDL: SQL Server
 - Kiểm thử: xUnit (API), Playwright (Web); CI/CD bằng GitHub Actions; chạy gọn bằng Docker Compose
+- Nâng cao: Hệ thống xu (PB58: Điểm danh nhận xu, nhiệm vụ đọc truyện, mở khóa chương lẻ, nạp xu)
 
 ## Cấu trúc
 - `backend/QuanLyDocTruyen.API` : Web API
