@@ -36,6 +36,19 @@ Web API dùng chung cho Web (React) và Android. Địa chỉ mặc định khi 
 | DELETE | `/api/chapters/{id}` | Admin | PB09: xóa chương |
 | POST | `/api/chapters/images` | Admin | Trả về đường dẫn để chèn vào nội dung chương theo cú pháp ![mô tả](đường dẫn) |
 
+## Coins (PB58)
+
+| Phương thức | Đường dẫn | Quyền | Mô tả |
+|---|---|---|---|
+| GET | `/api/coins/balance` | Đăng nhập | Lấy số dư xu, trạng thái điểm danh hôm nay và chuỗi điểm danh liên tục |
+| POST | `/api/coins/check-in` | Đăng nhập | Điểm danh nhận xu hằng ngày (+10 xu các ngày thường, +30 xu mốc 7 ngày) |
+| GET | `/api/coins/missions` | Đăng nhập | Danh sách nhiệm vụ đọc truyện hôm nay và tiến độ thực tế |
+| POST | `/api/coins/missions/{key}/claim` | Đăng nhập | Nhận thưởng xu sau khi hoàn thành nhiệm vụ |
+| POST | `/api/coins/unlock-chapter` | Đăng nhập | Mở khóa lẻ 1 chương trả phí bằng 5 xu (đọc vĩnh viễn) |
+| GET | `/api/coins/history` | Đăng nhập | Lịch sử cộng/trừ xu của tài khoản |
+| GET | `/api/coins/packages` | Không | Danh sách các gói nạp xu ưu đãi |
+| POST | `/api/coins/top-up` | Đăng nhập | Tạo giao dịch nạp xu qua cổng thanh toán (Mock, VNPay, VietQR) |
+
 ## Community
 
 | Phương thức | Đường dẫn | Quyền | Mô tả |

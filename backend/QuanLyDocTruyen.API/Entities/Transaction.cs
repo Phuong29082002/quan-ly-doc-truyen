@@ -15,4 +15,7 @@ public class Transaction
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? PaidAt { get; set; }
     public string? PackageMode { get; set; }
+
+    /// <summary>PB58: số lượng xu nạp (khi Type == CoinTopUp)</summary>
+    public int? CoinAmount { get; set; }
 }

@@ -110,13 +110,17 @@ public class StoryService(AppDbContext db, IWebHostEnvironment env) : IStoryServ
             };
         var hasFullAccess = accessSource is not null;
 
+        var unlockedChapterIds = userId.HasValue && !hasFullAccess
+            ? (await db.ChapterUnlocks.Where(u => u.UserId == userId.Value && u.StoryId == id).Select(u => u.ChapterId).ToListAsync()).ToHashSet()
+            : [];
+
         var chapterDtos = chapters
             .Select(c =>
             {
                 var isFree = AccessRules.IsFreeChapter(story.AccessType, story.FreeChapterCount, c.Number, c.IsFree);
                 return new ChapterListItemDto(
                     c.Id, c.Number, c.Title, isFree, c.PublishAt <= now, c.PublishAt,
-                    CanRead: isFree || hasFullAccess);
+                    CanRead: isFree || hasFullAccess || unlockedChapterIds.Contains(c.Id));
             })
             .ToList();
 

@@ -12,6 +12,7 @@ export interface User {
   /** Active | Restricted (không bình luận được) | Suspended */
   status?: "Active" | "Restricted" | "Suspended";
   statusReason?: string | null;
+  coins?: number;
 }
 
 export interface AuthResponse {
@@ -154,3 +155,63 @@ export const STATUS_LABEL: Record<StoryStatus, string> = {
   Ongoing: "Đang ra",
   Completed: "Hoàn thành",
 };
+
+// ---------- PB58: Hệ thống Xu ----------
+export interface CoinBalance {
+  coins: number;
+  hasCheckedInToday: boolean;
+  consecutiveDays: number;
+  lastCheckInAt: string | null;
+  nextCheckInReward: number;
+}
+
+export interface CheckInResult {
+  success: boolean;
+  coinsEarned: number;
+  newBalance: number;
+  consecutiveDays: number;
+  message: string;
+}
+
+export interface DailyMission {
+  key: string;
+  title: string;
+  description: string;
+  current: number;
+  target: number;
+  rewardCoins: number;
+  isCompleted: boolean;
+  isClaimed: boolean;
+}
+
+export interface ClaimMissionResult {
+  success: boolean;
+  coinsEarned: number;
+  newBalance: number;
+  message: string;
+}
+
+export interface CoinTransaction {
+  id: number;
+  amount: number;
+  type: string;
+  description: string;
+  createdAt: string;
+}
+
+export interface UnlockChapterResult {
+  success: boolean;
+  chapterId: number;
+  coinsSpent: number;
+  newBalance: number;
+  message: string;
+}
+
+export interface CoinPackage {
+  id: number;
+  name: string;
+  price: number;
+  coins: number;
+  bonusCoins: number;
+  tag: string | null;
+}

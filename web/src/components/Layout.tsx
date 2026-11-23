@@ -82,6 +82,7 @@ export default function Layout() {
       <NavLink to="/" end className={navClass}>Trang chủ</NavLink>
       <NavLink to="/xep-hang" className={navClass}>Xếp hạng</NavLink>
       <NavLink to="/goi-doc" className={navClass}>Gói đọc</NavLink>
+      <NavLink to="/nhiem-vu" className={navClass}>Nhiệm vụ & Xu</NavLink>
       {user && <NavLink to="/dang-doc" className={navClass}>Đang đọc</NavLink>}
       {user && <NavLink to="/theo-doi" className={navClass}>Theo dõi</NavLink>}
       {/* PB03: chỉ Admin mới thấy menu Quản trị */}
@@ -109,6 +110,14 @@ export default function Layout() {
           <div className="ml-auto flex items-center gap-2 md:ml-0">
             {user ? (
               <>
+                <Link
+                  to="/nhiem-vu"
+                  title="Ví xu & Nhiệm vụ"
+                  className="flex items-center gap-1.5 rounded-full border border-amber-400/40 bg-amber-400/20 px-3 py-1 text-xs font-bold text-amber-300 transition hover:bg-amber-400/30"
+                >
+                  <span>🪙</span>
+                  <span>{user.coins ?? 0}</span>
+                </Link>
                 <NotificationBell unread={notifications.unread} onOpened={notifications.markAllSeen} />
                 <div ref={userMenuRef} className="relative">
                   <button onClick={() => setUserMenu((o) => !o)} className="flex items-center gap-2 rounded-full p-0.5 pr-2 hover:bg-white/10" aria-haspopup="menu" aria-expanded={userMenu}>
@@ -123,6 +132,10 @@ export default function Layout() {
                         {isAdmin && <p className="mt-0.5 text-xs font-medium text-amber-700">Quản trị viên</p>}
                       </div>
                       <Link role="menuitem" to="/tai-khoan" className="block px-4 py-2 hover:bg-gray-50">Tài khoản của tôi</Link>
+                      <Link role="menuitem" to="/nhiem-vu" className="flex items-center justify-between px-4 py-2 hover:bg-gray-50 text-amber-800 font-medium">
+                        <span>🪙 Nhiệm vụ & Ví xu</span>
+                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold">{user.coins ?? 0} xu</span>
+                      </Link>
                       <Link role="menuitem" to="/tai-khoan?tab=tu-sach" className="block px-4 py-2 hover:bg-gray-50">Gói đọc & truyện đã mua</Link>
                       <Link role="menuitem" to="/tai-khoan?tab=lich-su" className="block px-4 py-2 hover:bg-gray-50">Lịch sử thanh toán</Link>
                       <Link role="menuitem" to="/thong-bao" className="block px-4 py-2 hover:bg-gray-50">Thông báo</Link>

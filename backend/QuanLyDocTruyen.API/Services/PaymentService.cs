@@ -394,6 +394,22 @@ public class PaymentService(
                 });
             }
         }
+        else if (transaction.Type == TransactionType.CoinTopUp && transaction.CoinAmount is int coinAmount)
+        {
+            var user = await db.Users.FirstOrDefaultAsync(u => u.Id == transaction.UserId);
+            if (user is not null)
+            {
+                user.Coins += coinAmount;
+                db.CoinTransactions.Add(new CoinTransaction
+                {
+                    UserId = user.Id,
+                    Amount = coinAmount,
+                    Type = CoinTransactionType.TopUp,
+                    Description = $"Nạp thành công {coinAmount} xu ({transaction.PackageMode ?? "Gói xu"})",
+                    CreatedAt = paidAt
+                });
+            }
+        }
     }
 
     /// <summary>Tạm dừng các gói khác đang còn hạn, lưu số ngày còn lại để khôi phục sau. Trả về true nếu có gói bị tạm dừng</summary>

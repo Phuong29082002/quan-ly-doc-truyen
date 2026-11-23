@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { meApi } from "../api/payments";
+import { coinsApi } from "../api/coins";
 import PayButton from "../components/PayButton";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
 import axios from "axios";
@@ -19,6 +20,8 @@ interface LockInfo {
   code: "LoginRequired" | "PurchaseRequired";
   storyTitle?: string;
   price?: number;
+  coinPrice?: number;
+  chapterId?: number;
 }
 
 type ReaderTheme = "light" | "sepia" | "dark";
@@ -60,10 +63,28 @@ export default function ReadChapterPage() {
   const number = Number(params.number);
   const key = `${storyId}/${number}`;
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
+  const [reloadKey, setReloadKey] = useState(0);
+  const [unlocking, setUnlocking] = useState(false);
+  const [unlockError, setUnlockError] = useState<string | null>(null);
 
   const [state, setState] = useState<{ key: string; data?: ChapterContent; error?: string; lock?: LockInfo }>();
   const [settings, setSettings] = useState<ReaderSettings>(loadSettings);
+
+  async function handleUnlockWithCoins(chapterId: number) {
+    if (unlocking) return;
+    setUnlocking(true);
+    setUnlockError(null);
+    try {
+      const res = await coinsApi.unlockChapter(chapterId);
+      if (user) updateUser({ ...user, coins: res.newBalance });
+      setReloadKey((k) => k + 1);
+    } catch (err) {
+      setUnlockError(getErrorMessage(err, "Không thể mở khóa chương"));
+    } finally {
+      setUnlocking(false);
+    }
+  }
 
   useEffect(() => {
     let ignore = false;
@@ -86,7 +107,7 @@ export default function ReadChapterPage() {
     return () => {
       ignore = true;
     };
-  }, [key, storyId, number]);
+  }, [key, storyId, number, reloadKey]);
 
   // PB26: mở lại đúng vị trí đọc lần trước và tự lưu vị trí khi cuộn (đồng bộ với Mobile)
   const loaded = state?.key === key && !!state.data;
@@ -163,14 +184,63 @@ export default function ReadChapterPage() {
           </>
         ) : (
           <>
-            <p className="mt-4 text-gray-700">Bạn cần có gói đọc còn hạn hoặc mua truyện để đọc chương này.</p>
-            {lock.price ? <p className="mt-2 text-sm text-gray-600">Giá mua truyện: <b>{formatNumber(lock.price)}đ</b></p> : null}
-            <div className="mt-5 flex flex-wrap justify-center gap-3">
+            <p className="mt-4 text-gray-700">Bạn cần có gói đọc còn hạn, mua truyện hoặc dùng xu mở khóa chương này.</p>
+
+            {/* PB58: Khối Mở Khóa Bằng Xu */}
+            {lock.chapterId ? (
+              <div className="my-5 rounded-2xl border border-amber-300 bg-amber-50/70 p-4 text-left shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl">🪙</span>
+                    <div>
+                      <span className="font-bold text-amber-950">Mở khóa lẻ bằng Xu</span>
+                      <p className="text-xs text-amber-800">Mở khóa một lần, đọc vĩnh viễn</p>
+                    </div>
+                  </div>
+                  <span className="rounded-full bg-amber-200 px-3 py-1 text-xs font-bold text-amber-900">
+                    {lock.coinPrice ?? 5} xu / chương
+                  </span>
+                </div>
+
+                <div className="mt-3 flex items-center justify-between rounded-xl bg-white/80 px-3 py-2 text-xs">
+                  <span className="text-gray-600">Số dư hiện tại của bạn:</span>
+                  <span className="font-bold text-amber-800">{user?.coins ?? 0} xu</span>
+                </div>
+
+                {unlockError && <p className="mt-2 text-xs text-red-600 font-medium">{unlockError}</p>}
+
+                <div className="mt-3">
+                  {(user?.coins ?? 0) >= (lock.coinPrice ?? 5) ? (
+                    <button
+                      onClick={() => handleUnlockWithCoins(lock.chapterId!)}
+                      disabled={unlocking}
+                      className="w-full rounded-xl bg-amber-600 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-amber-700 active:scale-95"
+                    >
+                      {unlocking ? "Đang mở khóa..." : `Mở khóa ngay (${lock.coinPrice ?? 5} xu)`}
+                    </button>
+                  ) : (
+                    <Link
+                      to="/nhiem-vu"
+                      className="block w-full text-center rounded-xl bg-amber-600 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-amber-700"
+                    >
+                      Số dư không đủ ({user?.coins ?? 0}/{lock.coinPrice ?? 5} xu) - Điểm danh / Nạp thêm xu
+                    </Link>
+                  )}
+                </div>
+              </div>
+            ) : null}
+
+            <div className="relative my-4">
+              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200" /></div>
+              <div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-2 text-gray-400 font-medium">Hoặc mở khóa trọn gói</span></div>
+            </div>
+
+            <div className="flex flex-wrap justify-center gap-3">
               {lock.price ? (
                 <PayButton kind="story" targetId={storyId} itemName={lock.storyTitle ?? "Truyện"} amount={lock.price}
-                  label={`Mua truyện · ${formatNumber(lock.price)}đ`} className="rounded-full bg-ink px-5 py-2 text-sm font-medium text-white hover:bg-ink-soft" />
+                  label={`Mua trọn bộ · ${formatNumber(lock.price)}đ`} className="rounded-full bg-ink px-5 py-2 text-sm font-medium text-white hover:bg-ink-soft" />
               ) : null}
-              <Link to="/goi-doc" className="rounded border px-5 py-2 text-sm font-medium hover:bg-gray-50">Xem các gói đọc</Link>
+              <Link to="/goi-doc" className="rounded-full border px-5 py-2 text-sm font-medium hover:bg-gray-50">Xem các gói đọc</Link>
             </div>
           </>
         )}

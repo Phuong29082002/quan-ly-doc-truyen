@@ -32,7 +32,7 @@ public class LoginRequest
 
 /// <summary>Status: Active / Restricted (không bình luận được) / Suspended; StatusReason: lý do Admin ghi</summary>
 public record UserDto(int Id, string Username, string Email, string DisplayName, string Role, string? AvatarUrl,
-    string Status = "Active", string? StatusReason = null);
+    string Status = "Active", string? StatusReason = null, int Coins = 0);
 
 public record AuthResponse(string Token, DateTime ExpiresAt, UserDto User);
 

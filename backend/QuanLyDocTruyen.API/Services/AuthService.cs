@@ -157,5 +157,5 @@ public class AuthService(
     }
 
     private static UserDto ToDto(User u) =>
-        new(u.Id, u.Username, u.Email, u.DisplayName, u.Role.ToString(), u.AvatarUrl, u.Status.ToString(), u.StatusReason);
+        new(u.Id, u.Username, u.Email, u.DisplayName, u.Role.ToString(), u.AvatarUrl, u.Status.ToString(), u.StatusReason, u.Coins);
 }
