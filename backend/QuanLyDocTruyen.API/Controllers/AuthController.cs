@@ -54,4 +54,24 @@ public class AuthController(IAuthService auth) : ControllerBase
         await auth.ChangePasswordAsync(User.GetUserId()!.Value, req);
         return NoContent();
     }
+    // PB57: Google login
+    [HttpPost("google")]
+    public async Task<ActionResult<AuthResponse>> GoogleLogin(GoogleLoginRequest req)
+        => Ok(await auth.GoogleLoginAsync(req.IdToken));
+
+    // Quên mật khẩu: gửi OTP qua email
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword(ForgotPasswordRequest req)
+    {
+        await auth.ForgotPasswordAsync(req.Email);
+        return Ok(new { message = "Nếu email tồn tại, mã OTP đã được gửi" });
+    }
+
+    // Đặt lại mật khẩu bằng OTP
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword(ResetPasswordRequest req)
+    {
+        await auth.ResetPasswordAsync(req);
+        return Ok(new { message = "Đặt lại mật khẩu thành công" });
+    }
 }

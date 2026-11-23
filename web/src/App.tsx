@@ -13,6 +13,8 @@ import AdminPage from "./pages/AdminPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import PricingPage from "./pages/PricingPage";
 import ProfilePage from "./pages/ProfilePage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import MockPaymentPage from "./pages/MockPaymentPage";
 import BankTransferPage from "./pages/BankTransferPage";
 import PaymentResultPage from "./pages/PaymentResultPage";
@@ -45,6 +47,8 @@ export default function App() {
             <Route path="/truyen/:id/chuong/:number" element={<ReadChapterPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/quen-mat-khau" element={<ForgotPasswordPage />} />
+            <Route path="/dat-lai-mat-khau" element={<ResetPasswordPage />} />
             <Route path="/goi-doc" element={<PricingPage />} />
             <Route path="/tai-khoan" element={<RequireAuth><ProfilePage /></RequireAuth>} />
             <Route path="/dang-doc" element={<RequireAuth><ReadingListPage /></RequireAuth>} />

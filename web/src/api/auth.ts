@@ -21,4 +21,17 @@ export const authApi = {
 
   changePassword: (currentPassword: string, newPassword: string) =>
     api.post("/api/auth/change-password", { currentPassword, newPassword }),
+
+  // PB57 Google login
+  googleLogin: (idToken: string) =>
+    api.post<AuthResponse>("/api/auth/google", { idToken }).then((r) => r.data),
+
+  // Quên mật khẩu: gửi OTP qua email
+  forgotPassword: (email: string) =>
+    api.post("/api/auth/forgot-password", { email }).then((r) => r.data),
+
+  // Đặt lại mật khẩu bằng OTP
+  resetPassword: (email: string, otp: string, newPassword: string) =>
+    api.post("/api/auth/reset-password", { email, otp, newPassword }).then((r) => r.data),
 };
+

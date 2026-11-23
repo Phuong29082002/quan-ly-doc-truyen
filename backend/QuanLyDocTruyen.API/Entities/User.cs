@@ -24,4 +24,8 @@ public class User
 
     /// <summary>PB58: chuỗi ngày điểm danh liên tục</summary>
     public int ConsecutiveCheckInDays { get; set; } = 0;
+
+    //Google Login
+    public string? GoogleId { get; set; }          // null = đăng ký thường
+    public bool EmailConfirmed { get; set; } = false;
 }

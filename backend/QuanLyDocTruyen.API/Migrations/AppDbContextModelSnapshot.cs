@@ -689,6 +689,12 @@ namespace QuanLyDocTruyen.API.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
 
+                    b.Property<bool>("EmailConfirmed")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("GoogleId")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime?>("LastCheckInAt")
                         .HasColumnType("datetime2");
 
