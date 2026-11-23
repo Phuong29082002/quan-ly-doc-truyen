@@ -16,8 +16,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
 
 builder.Services.AddDbContext<AppDbContext>(o =>
-    o.UseSqlServer(builder.Configuration.GetConnectionString("Default"))
-     .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)));
+    o.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
 
 // ---------- Xác thực JWT (PB02) + phân quyền theo vai trò (PB03) ----------
 var jwtSection = builder.Configuration.GetSection("Jwt");

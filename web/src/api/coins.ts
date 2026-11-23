@@ -7,9 +7,9 @@ import type {
   CoinTransaction,
   DailyMission,
   PagedResult,
-  PaymentStart,
   UnlockChapterResult,
 } from "./types";
+import type { PaymentStart } from "./payments";
 
 export const coinsApi = {
   /** Lấy số dư xu và trạng thái điểm danh */

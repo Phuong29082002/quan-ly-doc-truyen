@@ -64,6 +64,41 @@ namespace QuanLyDocTruyen.API.Migrations
                     b.ToTable("Chapters");
                 });
 
+            modelBuilder.Entity("QuanLyDocTruyen.API.Entities.ChapterUnlock", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ChapterId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CoinsSpent")
+                        .HasColumnType("int");
+
+                    b.Property<int>("StoryId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UnlockedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChapterId");
+
+                    b.HasIndex("StoryId");
+
+                    b.HasIndex("UserId", "ChapterId")
+                        .IsUnique();
+
+                    b.ToTable("ChapterUnlocks");
+                });
+
             modelBuilder.Entity("QuanLyDocTruyen.API.Entities.ChapterView", b =>
                 {
                     b.Property<long>("Id")
@@ -91,6 +126,39 @@ namespace QuanLyDocTruyen.API.Migrations
                     b.HasIndex("ViewedAt");
 
                     b.ToTable("ChapterViews");
+                });
+
+            modelBuilder.Entity("QuanLyDocTruyen.API.Entities.CoinTransaction", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Amount")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "CreatedAt");
+
+                    b.ToTable("CoinTransactions");
                 });
 
             modelBuilder.Entity("QuanLyDocTruyen.API.Entities.Comment", b =>
@@ -164,6 +232,47 @@ namespace QuanLyDocTruyen.API.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("CommentReports");
+                });
+
+            modelBuilder.Entity("QuanLyDocTruyen.API.Entities.DailyMissionProgress", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("ClaimedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("CurrentProgress")
+                        .HasColumnType("int");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<bool>("IsClaimed")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("MissionKey")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("RewardCoins")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TargetProgress")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Date", "MissionKey")
+                        .IsUnique();
+
+                    b.ToTable("DailyMissionProgresses");
                 });
 
             modelBuilder.Entity("QuanLyDocTruyen.API.Entities.Follow", b =>
@@ -468,6 +577,9 @@ namespace QuanLyDocTruyen.API.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<int?>("CoinAmount")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -520,6 +632,12 @@ namespace QuanLyDocTruyen.API.Migrations
                     b.Property<string>("AvatarUrl")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int>("Coins")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ConsecutiveCheckInDays")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -530,6 +648,9 @@ namespace QuanLyDocTruyen.API.Migrations
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime?>("LastCheckInAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
@@ -636,6 +757,33 @@ namespace QuanLyDocTruyen.API.Migrations
                     b.Navigation("Story");
                 });
 
+            modelBuilder.Entity("QuanLyDocTruyen.API.Entities.ChapterUnlock", b =>
+                {
+                    b.HasOne("QuanLyDocTruyen.API.Entities.Chapter", "Chapter")
+                        .WithMany()
+                        .HasForeignKey("ChapterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("QuanLyDocTruyen.API.Entities.Story", "Story")
+                        .WithMany()
+                        .HasForeignKey("StoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("QuanLyDocTruyen.API.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Chapter");
+
+                    b.Navigation("Story");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("QuanLyDocTruyen.API.Entities.ChapterView", b =>
                 {
                     b.HasOne("QuanLyDocTruyen.API.Entities.Chapter", "Chapter")
@@ -645,6 +793,17 @@ namespace QuanLyDocTruyen.API.Migrations
                         .IsRequired();
 
                     b.Navigation("Chapter");
+                });
+
+            modelBuilder.Entity("QuanLyDocTruyen.API.Entities.CoinTransaction", b =>
+                {
+                    b.HasOne("QuanLyDocTruyen.API.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("QuanLyDocTruyen.API.Entities.Comment", b =>
@@ -688,6 +847,17 @@ namespace QuanLyDocTruyen.API.Migrations
                         .IsRequired();
 
                     b.Navigation("Comment");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("QuanLyDocTruyen.API.Entities.DailyMissionProgress", b =>
+                {
+                    b.HasOne("QuanLyDocTruyen.API.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.Navigation("User");
                 });
