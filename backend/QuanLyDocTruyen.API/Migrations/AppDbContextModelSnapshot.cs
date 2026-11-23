@@ -179,6 +179,8 @@ namespace QuanLyDocTruyen.API.Migrations
 
                     b.HasKey("UserId", "StoryId");
 
+                    b.HasIndex("CreatedAt");
+
                     b.HasIndex("StoryId");
 
                     b.ToTable("Follows");
@@ -288,6 +290,33 @@ namespace QuanLyDocTruyen.API.Migrations
                     b.ToTable("PackageStories");
                 });
 
+            modelBuilder.Entity("QuanLyDocTruyen.API.Entities.Rating", b =>
+                {
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("StoryId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Score")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("UserId", "StoryId");
+
+                    b.HasIndex("StoryId");
+
+                    b.ToTable("Ratings", t =>
+                        {
+                            t.HasCheckConstraint("CK_Rating_Score", "[Score] BETWEEN 1 AND 5");
+                        });
+                });
+
             modelBuilder.Entity("QuanLyDocTruyen.API.Entities.ReadingProgress", b =>
                 {
                     b.Property<int>("UserId")
@@ -346,6 +375,16 @@ namespace QuanLyDocTruyen.API.Migrations
                     b.Property<decimal>("Price")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<double>("RatingAverage")
+                        .HasColumnType("float");
+
+                    b.Property<int>("RatingCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SearchText")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -435,6 +474,9 @@ namespace QuanLyDocTruyen.API.Migrations
                     b.Property<int?>("PackageId")
                         .HasColumnType("int");
 
+                    b.Property<string>("PackageMode")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime?>("PaidAt")
                         .HasColumnType("datetime2");
 
@@ -456,6 +498,8 @@ namespace QuanLyDocTruyen.API.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CreatedAt");
+
                     b.HasIndex("PackageId");
 
                     b.HasIndex("StoryId");
@@ -472,6 +516,9 @@ namespace QuanLyDocTruyen.API.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AvatarUrl")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -504,6 +551,12 @@ namespace QuanLyDocTruyen.API.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<DateTime?>("StatusChangedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("StatusReason")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Username")
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
@@ -519,6 +572,25 @@ namespace QuanLyDocTruyen.API.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("QuanLyDocTruyen.API.Entities.UserAvatar", b =>
+                {
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<byte[]>("ImageData")
+                        .IsRequired()
+                        .HasColumnType("varbinary(max)");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("UserAvatars");
+                });
+
             modelBuilder.Entity("QuanLyDocTruyen.API.Entities.UserPackage", b =>
                 {
                     b.Property<int>("Id")
@@ -530,7 +602,13 @@ namespace QuanLyDocTruyen.API.Migrations
                     b.Property<DateTime>("EndAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<bool>("IsPaused")
+                        .HasColumnType("bit");
+
                     b.Property<int>("PackageId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("RemainingDays")
                         .HasColumnType("int");
 
                     b.Property<DateTime>("StartAt")
@@ -669,6 +747,25 @@ namespace QuanLyDocTruyen.API.Migrations
                     b.Navigation("Story");
                 });
 
+            modelBuilder.Entity("QuanLyDocTruyen.API.Entities.Rating", b =>
+                {
+                    b.HasOne("QuanLyDocTruyen.API.Entities.Story", "Story")
+                        .WithMany()
+                        .HasForeignKey("StoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("QuanLyDocTruyen.API.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Story");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("QuanLyDocTruyen.API.Entities.ReadingProgress", b =>
                 {
                     b.HasOne("QuanLyDocTruyen.API.Entities.Chapter", "Chapter")
@@ -767,6 +864,17 @@ namespace QuanLyDocTruyen.API.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("QuanLyDocTruyen.API.Entities.UserAvatar", b =>
+                {
+                    b.HasOne("QuanLyDocTruyen.API.Entities.User", "User")
+                        .WithOne("Avatar")
+                        .HasForeignKey("QuanLyDocTruyen.API.Entities.UserAvatar", "UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("QuanLyDocTruyen.API.Entities.UserPackage", b =>
                 {
                     b.HasOne("QuanLyDocTruyen.API.Entities.Package", "Package")
@@ -814,6 +922,11 @@ namespace QuanLyDocTruyen.API.Migrations
                     b.Navigation("Chapters");
 
                     b.Navigation("StoryGenres");
+                });
+
+            modelBuilder.Entity("QuanLyDocTruyen.API.Entities.User", b =>
+                {
+                    b.Navigation("Avatar");
                 });
 #pragma warning restore 612, 618
         }

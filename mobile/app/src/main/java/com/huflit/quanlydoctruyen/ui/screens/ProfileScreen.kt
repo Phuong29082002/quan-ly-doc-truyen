@@ -1,5 +1,10 @@
 package com.huflit.quanlydoctruyen.ui.screens
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,13 +26,17 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import com.huflit.quanlydoctruyen.ui.components.Biometric
+import androidx.compose.material3.Switch
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -38,6 +47,12 @@ import com.huflit.quanlydoctruyen.data.ChangePasswordRequest
 import com.huflit.quanlydoctruyen.data.SessionManager
 import com.huflit.quanlydoctruyen.data.UpdateProfileRequest
 import com.huflit.quanlydoctruyen.data.toMessage
+import com.huflit.quanlydoctruyen.ui.components.Avatar
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
 import kotlin.coroutines.cancellation.CancellationException
@@ -45,7 +60,7 @@ import kotlin.coroutines.cancellation.CancellationException
 // PB04: xem, cập nhật hồ sơ và đổi mật khẩu
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileScreen(onBack: () -> Unit) {
+fun ProfileScreen(onBack: () -> Unit, onOpenLibrary: () -> Unit) {
     val user = SessionManager.user
     val scope = rememberCoroutineScope()
 
@@ -54,6 +69,10 @@ fun ProfileScreen(onBack: () -> Unit) {
         if (user == null) onBack()
     }
     if (user == null) return
+
+    val context = LocalContext.current
+    var avatarMsg by remember { mutableStateOf<Pair<Boolean, String>?>(null) }
+    var uploadingAvatar by remember { mutableStateOf(false) }
 
     var displayName by remember { mutableStateOf(user.displayName) }
     var profileMsg by remember { mutableStateOf<Pair<Boolean, String>?>(null) }
@@ -64,6 +83,50 @@ fun ProfileScreen(onBack: () -> Unit) {
     var confirm by remember { mutableStateOf("") }
     var passMsg by remember { mutableStateOf<Pair<Boolean, String>?>(null) }
     var savingPass by remember { mutableStateOf(false) }
+
+    // PB04: đọc ảnh đã chọn, gửi multipart (field "file") lên API
+    fun uploadAvatar(uri: Uri) {
+        avatarMsg = null
+        scope.launch {
+            uploadingAvatar = true
+            try {
+                val resolver = context.contentResolver
+                val mime = resolver.getType(uri) ?: "image/jpeg"
+                val ext = when (mime) {
+                    "image/jpeg" -> ".jpg"
+                    "image/png" -> ".png"
+                    "image/webp" -> ".webp"
+                    else -> null
+                }
+                if (ext == null) {
+                    avatarMsg = false to "Chỉ chấp nhận ảnh JPG, PNG, WEBP"
+                    return@launch
+                }
+                val bytes = withContext(Dispatchers.IO) { resolver.openInputStream(uri)?.use { it.readBytes() } }
+                if (bytes == null || bytes.isEmpty()) {
+                    avatarMsg = false to "Không đọc được ảnh"
+                    return@launch
+                }
+                if (bytes.size > 2 * 1024 * 1024) {
+                    avatarMsg = false to "Ảnh đại diện tối đa 2MB"
+                    return@launch
+                }
+                val part = MultipartBody.Part.createFormData("file", "avatar$ext", bytes.toRequestBody(mime.toMediaType()))
+                SessionManager.updateUser(ApiClient.api.uploadAvatar(part))
+                avatarMsg = true to "Đã đổi ảnh đại diện"
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                avatarMsg = false to e.toMessage("Tải ảnh thất bại")
+            } finally {
+                uploadingAvatar = false
+            }
+        }
+    }
+
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) uploadAvatar(uri)
+    }
 
     fun saveProfile() {
         val name = displayName.trim()
@@ -114,6 +177,9 @@ fun ProfileScreen(onBack: () -> Unit) {
         }
     }
 
+    var biometricOn by remember { mutableStateOf(SessionManager.biometricEnabled) }
+    var biometricMsg by remember { mutableStateOf<String?>(null) }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -127,10 +193,27 @@ fun ProfileScreen(onBack: () -> Unit) {
         ) {
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp)) {
-                    Text(user.displayName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    Text("Tên đăng nhập: ${user.username}", style = MaterialTheme.typography.bodyMedium)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Avatar(user.avatarUrl, user.displayName, 72.dp)
+                        Column(Modifier.padding(start = 16.dp)) {
+                            Text(user.displayName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                            OutlinedButton(
+                                onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                                enabled = !uploadingAvatar
+                            ) {
+                                Text(if (uploadingAvatar) "Đang tải..." else "Đổi ảnh đại diện")
+                            }
+                        }
+                    }
+                    Message(avatarMsg)
+                    Text("Tên đăng nhập: ${user.username}", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
                     Text("Email: ${user.email}", style = MaterialTheme.typography.bodyMedium)
                 }
+            }
+
+            // PB25: gói đang dùng, truyện đã mua, lịch sử thanh toán
+            Button(onClick = onOpenLibrary, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                Text("Gói đọc, truyện đã mua & lịch sử thanh toán")
             }
 
             SectionTitle("Thông tin cá nhân")
@@ -155,6 +238,33 @@ fun ProfileScreen(onBack: () -> Unit) {
             Message(passMsg)
             Button(onClick = { changePassword() }, enabled = !savingPass, modifier = Modifier.padding(top = 8.dp)) {
                 Text(if (savingPass) "Đang đổi..." else "Đổi mật khẩu")
+            }
+
+            // PB53: mở app bằng vân tay
+            if (Biometric.isAvailable(context)) {
+                HorizontalDivider(Modifier.padding(vertical = 20.dp))
+                SectionTitle("Bảo mật")
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Mở app bằng vân tay", fontWeight = FontWeight.Medium)
+                        Text("Mỗi lần mở app cần chạm vân tay mới vào được tài khoản", style = MaterialTheme.typography.bodySmall)
+                    }
+                    Switch(checked = biometricOn, onCheckedChange = { on ->
+                        if (!on) {
+                            SessionManager.biometricEnabled = false
+                            biometricOn = false
+                        } else {
+                            // Xác thực một lần để chắc chắn vân tay hoạt động rồi mới bật
+                            Biometric.authenticate(
+                                context, "Bật mở khóa bằng vân tay", "Hủy",
+                                onSuccess = { SessionManager.biometricEnabled = true; biometricOn = true },
+                                onNegative = {},
+                                onError = { biometricMsg = it }
+                            )
+                        }
+                    })
+                }
+                biometricMsg?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
             }
 
             Spacer(Modifier.height(28.dp))

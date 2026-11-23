@@ -20,6 +20,12 @@ public static class DbSeeder
 
         await db.Database.MigrateAsync();
 
+        // PB51: truyện tạo trước khi có tìm kiếm không dấu thì bổ sung chuỗi tìm kiếm
+        var missing = await db.Stories.Where(x => x.SearchText == "").ToListAsync();
+        foreach (var story in missing)
+            story.SearchText = QuanLyDocTruyen.API.Common.TextSearch.ForStory(story.Title, story.Author);
+        if (missing.Count > 0) await db.SaveChangesAsync();
+
         // PB03: tài khoản quản trị mặc định
         if (!await db.Users.AnyAsync(u => u.Role == UserRole.Admin))
         {
@@ -89,6 +95,138 @@ public static class DbSeeder
 
         await SeedSprint2Async(db, hasher);
         await SeedIllustratedStoryAsync(db);
+        await SeedSprint3Async(db, hasher);
+        await SeedSprint4Async(db, hasher);
+        await LibrarySeed.SeedAsync(db);
+        await OriginalSeed.SeedAsync(db);
+        await SeedSprint5Async(db);
+    }
+
+    /// <summary>
+    /// Sprint 5: đánh giá sao mẫu của các thành viên (PB49) và lượt đọc rải trong 30 ngày gần nhất
+    /// để bảng xếp hạng ngày/tuần/tháng và biểu đồ thống kê có dữ liệu khi demo (PB35-PB37).
+    /// </summary>
+    private static async Task SeedSprint5Async(AppDbContext db)
+    {
+        if (await db.Ratings.AnyAsync()) return;
+
+        var members = await db.Users.Where(u => u.Role == UserRole.Member).OrderBy(u => u.Id).ToListAsync();
+        var stories = await db.Stories.Include(s => s.Chapters).OrderBy(s => s.Id).ToListAsync();
+        if (members.Count == 0 || stories.Count == 0) return;
+
+        var random = new Random(2026);
+        var now = DateTime.UtcNow;
+
+        // Mỗi truyện có "độ hấp dẫn" riêng để xếp hạng khác nhau giữa các truyện
+        foreach (var (story, index) in stories.Select((s, i) => (s, i)))
+        {
+            var appeal = 1 + (stories.Count - index) % 5;
+            foreach (var member in members)
+            {
+                if (random.Next(10) >= 3 + appeal) continue;
+                var score = Math.Clamp(2 + appeal / 2 + random.Next(3), 1, 5);
+                db.Ratings.Add(new Rating { UserId = member.Id, StoryId = story.Id, Score = score, CreatedAt = now.AddDays(-random.Next(30)) });
+            }
+
+            var published = story.Chapters.Where(c => c.PublishAt <= now).OrderBy(c => c.Number).ToList();
+            if (published.Count == 0) continue;
+            if (await db.ChapterViews.CountAsync(v => v.StoryId == story.Id) > 200) continue;
+
+            for (var day = 0; day < 30; day++)
+            {
+                var count = random.Next(appeal * 2 + 1);
+                for (var k = 0; k < count; k++)
+                {
+                    // Người đọc thường dừng ở các chương đầu nên chương đầu nhiều lượt hơn
+                    var chapter = published[Math.Min(published.Count - 1, (int)(Math.Pow(random.NextDouble(), 2) * published.Count))];
+                    var reader = random.Next(3) == 0 ? null : (int?)members[random.Next(members.Count)].Id;
+                    db.ChapterViews.Add(new ChapterView
+                    {
+                        ChapterId = chapter.Id,
+                        StoryId = story.Id,
+                        UserId = reader,
+                        ViewedAt = now.AddDays(-day).AddMinutes(-random.Next(24 * 60))
+                    });
+                    chapter.ViewCount++;
+                    story.ViewCount++;
+                }
+            }
+        }
+        await db.SaveChangesAsync();
+
+        foreach (var story in stories)
+        {
+            var scores = await db.Ratings.Where(r => r.StoryId == story.Id).Select(r => r.Score).ToListAsync();
+            story.RatingCount = scores.Count;
+            story.RatingAverage = scores.Count == 0 ? 0 : Math.Round(scores.Average(), 2);
+        }
+        await db.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Sprint 4: bình luận mẫu, một báo cáo vi phạm đang chờ xử lý (PB30-PB32)
+    /// và tài khoản vip theo dõi sẵn 2 truyện để thử thông báo chương mới (PB28, PB29).
+    /// </summary>
+    private static async Task SeedSprint4Async(AppDbContext db, IPasswordHasher<User> hasher)
+    {
+        if (await db.Users.AnyAsync(u => u.Username == "minh")) return;
+
+        var vip = await db.Users.FirstOrDefaultAsync(u => u.Username == "vip");
+        var chapter = await db.Chapters.Include(c => c.Story)
+            .Where(c => c.Story.Title == "Kiếm Khách Bên Sông Hồng" && c.Number == 1).FirstOrDefaultAsync();
+        if (vip is null || chapter is null) return;
+
+        var minh = new User { Username = "minh", Email = "minh@doctruyen.local", DisplayName = "Độc giả Minh" };
+        minh.PasswordHash = hasher.HashPassword(minh, "123456");
+        db.Users.Add(minh);
+        await db.SaveChangesAsync();
+
+        var now = DateTime.UtcNow;
+        var first = new Comment { ChapterId = chapter.Id, UserId = vip.Id, Content = "Mở đầu cuốn quá, đoạn thanh kiếm gãy dưới đáy sông rất có không khí!", CreatedAt = now.AddHours(-5) };
+        db.Comments.Add(first);
+        await db.SaveChangesAsync();
+        db.Comments.Add(new Comment { ChapterId = chapter.Id, UserId = minh.Id, ParentId = first.Id, Content = "Đồng ý, mong tác giả ra chương nhanh nhanh.", CreatedAt = now.AddHours(-4) });
+        var spam = new Comment { ChapterId = chapter.Id, UserId = minh.Id, Content = "Vào trang web lạ để nhận thẻ cào miễn phí!!!", CreatedAt = now.AddHours(-3) };
+        db.Comments.Add(spam);
+        await db.SaveChangesAsync();
+        db.CommentReports.Add(new CommentReport { CommentId = spam.Id, UserId = vip.Id, Reason = "Spam, quảng cáo", CreatedAt = now.AddHours(-2) });
+
+        foreach (var title in new[] { "Người Gác Đèn Cuối Cùng", "Chuyến Tàu Đêm Qua Đèo" })
+        {
+            var story = await db.Stories.FirstOrDefaultAsync(x => x.Title == title);
+            if (story is not null && !await db.Follows.AnyAsync(f => f.UserId == vip.Id && f.StoryId == story.Id))
+                db.Follows.Add(new Follow { UserId = vip.Id, StoryId = story.Id });
+        }
+        await db.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// PB24: tài khoản "khach" có một giao dịch mua truyện đã thanh toán thành công nhưng chưa được cấp quyền đọc
+    /// (giả lập lỗi giữa chừng) để Admin thử chức năng đối soát và cấp lại quyền.
+    /// </summary>
+    private static async Task SeedSprint3Async(AppDbContext db, IPasswordHasher<User> hasher)
+    {
+        if (await db.Users.AnyAsync(u => u.Username == "khach")) return;
+
+        var story = await db.Stories.FirstOrDefaultAsync(s => s.Title == "Người Gác Đèn Cuối Cùng");
+        if (story is null) return;
+
+        var user = new User { Username = "khach", Email = "khach@doctruyen.local", DisplayName = "Khách đối soát" };
+        user.PasswordHash = hasher.HashPassword(user, "123456");
+        db.Users.Add(user);
+
+        var paidAt = DateTime.UtcNow.AddHours(-2);
+        db.Transactions.Add(new Transaction
+        {
+            User = user,
+            Type = TransactionType.Story,
+            StoryId = story.Id,
+            Amount = story.Price,
+            Status = TransactionStatus.Success,
+            CreatedAt = paidAt.AddMinutes(-1),
+            PaidAt = paidAt
+        });
+        await db.SaveChangesAsync();
     }
 
     /// <summary>
@@ -172,7 +310,16 @@ public static class DbSeeder
 
         if (!await db.Users.AnyAsync(u => u.Username == "vip"))
         {
-            var monthly = await db.Packages.FirstAsync(p => p.Name == "Gói Tháng");
+            // DB đã có gói do Admin tự tạo thì dùng luôn; chưa có gói nào mới tạo "Gói Tháng"
+            var monthly = await db.Packages.FirstOrDefaultAsync(p => p.Name == "Gói Tháng")
+                ?? await db.Packages.FirstOrDefaultAsync(p => p.IsActive && p.Scope == PackageScope.All)
+                ?? await db.Packages.FirstOrDefaultAsync(p => p.IsActive);
+            if (monthly is null)
+            {
+                monthly = new Package { Name = "Gói Tháng", Price = 49000, DurationDays = 30, Scope = PackageScope.All };
+                db.Packages.Add(monthly);
+                await db.SaveChangesAsync();
+            }
             var vip = new User { Username = "vip", Email = "vip@doctruyen.local", DisplayName = "Độc giả VIP" };
             vip.PasswordHash = hasher.HashPassword(vip, "123456");
             db.Users.Add(vip);
@@ -208,6 +355,7 @@ public static class DbSeeder
         {
             Title = title,
             Author = author,
+            SearchText = QuanLyDocTruyen.API.Common.TextSearch.ForStory(title, author),
             Status = status,
             Description = description,
             CreatedAt = createdAt,

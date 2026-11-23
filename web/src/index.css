@@ -1,5 +1,48 @@
 @import "tailwindcss";
 
+/*
+  PB44: nhận diện "Đèn đọc khuya"
+  - Mực (ink): nền đầu trang, chữ tiêu đề        #1d2342
+  - Ngọc (jade): nút, liên kết, trạng thái chọn   thay cho thang màu blue mặc định
+  - Đèn (lamp): điểm nhấn gói đọc / xếp hạng     #e9b44c
+  - Giấy: nền trang xám xanh rất nhạt, khung trắng
+  Chữ giao diện: Be Vietnam Pro (thiết kế cho tiếng Việt); tên truyện + nội dung đọc: Lora
+*/
+@theme {
+  --font-sans: "Be Vietnam Pro", ui-sans-serif, system-ui, sans-serif;
+  --font-story: "Lora", Georgia, "Times New Roman", serif;
+
+  --color-ink: #1d2342;
+  --color-ink-soft: #2b3359;
+  --color-lamp: #e9b44c;
+  --color-lamp-soft: #fbf0d6;
+  --color-paper: #f3f4f8;
+
+  /* Thang màu ngọc thay cho blue: mọi trang (kể cả trang quản trị) đổi màu đồng bộ */
+  --color-blue-50: #ecf8f6;
+  --color-blue-100: #d0efea;
+  --color-blue-200: #a3ded5;
+  --color-blue-300: #6cc6b9;
+  --color-blue-400: #36a99a;
+  --color-blue-500: #168f80;
+  --color-blue-600: #0e7a6d;
+  --color-blue-700: #0f6259;
+  --color-blue-800: #114f49;
+  --color-blue-900: #12423d;
+
+  /* Xám ngả xanh mực cho hợp tông */
+  --color-gray-50: #f6f7fa;
+  --color-gray-100: #eceef4;
+  --color-gray-200: #dde1ea;
+  --color-gray-300: #c3c9d6;
+  --color-gray-400: #9199ad;
+  --color-gray-500: #6b7185;
+  --color-gray-600: #4f5569;
+  --color-gray-700: #3b4054;
+  --color-gray-800: #262a3b;
+  --color-gray-900: #1b2030;
+}
+
 /* Tailwind v4 mặc định viền màu đen (currentColor) -> đổi về xám nhạt như v3 */
 @layer base {
   *,
@@ -9,4 +52,162 @@
   ::file-selector-button {
     border-color: var(--color-gray-200, currentColor);
   }
+
+  body {
+    @apply bg-paper text-gray-900 antialiased;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-blue-500);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, ::before, ::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* Bìa truyện dạng sách: gáy sách tối bên trái + bóng đổ nhẹ */
+  .book {
+    position: relative;
+    border-radius: 3px 6px 6px 3px;
+    box-shadow: 0 1px 2px rgb(29 35 66 / 0.25), 0 8px 18px -10px rgb(29 35 66 / 0.55);
+    overflow: hidden;
+  }
+  .book::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 7%;
+    background: linear-gradient(90deg, rgb(0 0 0 / 0.28), rgb(255 255 255 / 0.12) 60%, transparent);
+    pointer-events: none;
+    z-index: 1;
+  }
+}
+
+/*
+  Giao diện tối kiểu rạp chiếu cho các trang của người đọc (trang quản trị vẫn dùng giao diện sáng).
+  Tailwind v4 dùng biến màu cho mọi lớp tiện ích, nên chỉ cần đổi biến trong phạm vi .cinema:
+  thang xám đảo ngược (chữ sáng trên nền tối), thang ngọc sáng hơn để đọc rõ trên nền tối,
+  các màu nhãn (xanh lá, cam, đỏ, tím) đổi nền nhạt thành nền tối pha màu.
+*/
+.cinema {
+  color-scheme: dark;
+  --color-paper: #0f1220;
+  --surface: #181c2e;
+  --color-lamp-soft: #3a2f17;
+
+  --color-gray-50: #1f2438;
+  --color-gray-100: #262c42;
+  --color-gray-200: #2f364f;
+  --color-gray-300: #434b66;
+  --color-gray-400: #6f7792;
+  --color-gray-500: #9ba2b8;
+  --color-gray-600: #b6bccd;
+  --color-gray-700: #cfd3df;
+  --color-gray-800: #e3e6ee;
+  --color-gray-900: #f3f4f8;
+
+  --color-blue-50: #132a2b;
+  --color-blue-100: #16393a;
+  --color-blue-200: #1c5551;
+  --color-blue-300: #2f8279;
+  --color-blue-400: #3fb3a3;
+  --color-blue-500: #4cc6b5;
+  --color-blue-600: #179383;
+  --color-blue-700: #5fd3c2;
+  --color-blue-800: #8ae2d5;
+  --color-blue-900: #b5eee5;
+
+  --color-green-50: #13281f;
+  --color-green-100: #163626;
+  --color-green-200: #1d4a33;
+  --color-green-700: #6fdc9c;
+  --color-amber-50: #2e2412;
+  --color-amber-100: #3a2d13;
+  --color-amber-200: #5a4519;
+  --color-amber-700: #f2c66b;
+  --color-amber-800: #f5d28a;
+  --color-amber-900: #f8dfa8;
+  --color-orange-50: #2f1f14;
+  --color-orange-100: #3d2616;
+  --color-orange-200: #5c3519;
+  --color-orange-700: #f7a76a;
+  --color-orange-800: #f9b885;
+  --color-red-50: #2f1719;
+  --color-red-100: #3d1b1e;
+  --color-red-200: #5d2328;
+  --color-red-600: #f0787c;
+  --color-red-700: #f58d90;
+  --color-purple-100: #2c1f3d;
+  --color-purple-700: #c9a6f2;
+
+  background-color: var(--color-paper);
+  color: var(--color-gray-900);
+}
+
+.cinema .bg-white {
+  background-color: var(--surface);
+}
+
+/* Nút nền mực sẽ chìm trên nền tối: đổi sang màu ngọc */
+.cinema button.bg-ink {
+  background-color: var(--color-blue-600);
+}
+.cinema button.bg-ink:hover {
+  background-color: var(--color-blue-500);
+}
+
+.cinema .book {
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.5), 0 12px 24px -12px rgb(0 0 0 / 0.9);
+}
+
+/* Số thứ tự lớn kiểu "Top 10": chỉ có viền chữ */
+.rank-number {
+  font-family: var(--font-story);
+  font-weight: 700;
+  line-height: 0.8;
+  color: var(--color-paper);
+  -webkit-text-stroke: 3px var(--color-gray-400);
+  paint-order: stroke fill;
+}
+
+/* Hiện dần khi cuộn tới (xem useReveal) */
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+.reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+@keyframes billboard-in {
+  from { opacity: 0; transform: scale(1.06); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes pop-in {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.7); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes progress {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+.animate-billboard { animation: billboard-in 1.2s ease-out both; }
+.animate-rise { animation: rise-in 0.7s ease-out both; }
+.animate-pop { animation: pop-in 0.22s ease-out both; }
+.animate-progress { animation: progress linear both; transform-origin: left; }
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal { opacity: 1; transform: none; }
 }

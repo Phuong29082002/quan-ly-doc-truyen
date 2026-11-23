@@ -12,9 +12,10 @@ public interface IChapterService
     Task<ChapterAdminDto> GetForEditAsync(int id);
     Task<ChapterAdminDto> CreateAsync(int storyId, ChapterRequest req);
     Task<ChapterAdminDto> UpdateAsync(int id, ChapterRequest req);
+    Task DeleteAsync(int id);
 }
 
-public class ChapterService(AppDbContext db) : IChapterService
+public class ChapterService(AppDbContext db, IReadingService reading) : IChapterService
 {
     // PB14, PB22: đọc chương. Chương miễn phí ai cũng đọc được; chương trả phí cần gói còn hạn hoặc đã mua truyện
     public async Task<ChapterContentDto> ReadAsync(int storyId, int number, int? userId, bool isAdmin)
@@ -50,6 +51,10 @@ public class ChapterService(AppDbContext db) : IChapterService
         story.ViewCount++;
         db.ChapterViews.Add(new ChapterView { ChapterId = chapter.Id, StoryId = storyId, UserId = userId });
         await db.SaveChangesAsync();
+
+        // PB26: thành viên mở chương thì tự lưu tiến độ đọc
+        if (userId is int uid)
+            await reading.TrackChapterAsync(uid, storyId, chapter.Id);
 
         return new ChapterContentDto(
             chapter.Id, storyId, story.Title, chapter.Number, chapter.Title,
@@ -103,13 +108,53 @@ public class ChapterService(AppDbContext db) : IChapterService
         chapter.Title = req.Title.Trim();
         chapter.Content = req.Content;
         chapter.IsFree = req.IsFree;
-        if (req.PublishAt is DateTime publishAt)
-            chapter.PublishAt = publishAt.ToUniversalTime();
+        chapter.PublishAt = req.PublishAt?.ToUniversalTime() ?? DateTime.UtcNow;
 
         chapter.Story.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
 
         return ToAdminDto(chapter);
+    }
+
+    // PB09: xóa chương cùng dữ liệu gắn trực tiếp với chương trong một transaction.
+    public async Task DeleteAsync(int id)
+    {
+        var chapter = await db.Chapters.Include(c => c.Story).FirstOrDefaultAsync(c => c.Id == id)
+            ?? throw new NotFoundException("Không tìm thấy chương");
+
+        await using var transaction = await db.Database.BeginTransactionAsync();
+
+        var commentIds = await db.Comments
+            .Where(c => c.ChapterId == id)
+            .Select(c => c.Id)
+            .ToArrayAsync();
+
+        if (commentIds.Length > 0)
+        {
+            await db.CommentReports
+                .Where(r => commentIds.Contains(r.CommentId))
+                .ExecuteDeleteAsync();
+
+            // Tách replies khỏi comment cha trước khi xóa comment thuộc chương.
+            await db.Comments
+                .Where(c => c.ParentId.HasValue && commentIds.Contains(c.ParentId.Value))
+                .ExecuteUpdateAsync(s => s.SetProperty(c => c.ParentId, (int?)null));
+
+            await db.Comments
+                .Where(c => c.ChapterId == id)
+                .ExecuteDeleteAsync();
+        }
+
+        await db.ChapterViews.Where(v => v.ChapterId == id).ExecuteDeleteAsync();
+        await db.ReadingProgresses.Where(p => p.ChapterId == id).ExecuteDeleteAsync();
+        await db.Notifications
+            .Where(n => n.ChapterId == id)
+            .ExecuteUpdateAsync(s => s.SetProperty(n => n.ChapterId, (int?)null));
+
+        db.Chapters.Remove(chapter);
+        chapter.Story.UpdatedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+        await transaction.CommitAsync();
     }
 
     // 403 kèm code/price để Web biết hiển thị yêu cầu đăng nhập hay mua gói/mua truyện

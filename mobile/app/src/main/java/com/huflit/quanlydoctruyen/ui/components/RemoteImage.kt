@@ -4,18 +4,28 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.LruCache
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.huflit.quanlydoctruyen.data.ApiClient
 import com.huflit.quanlydoctruyen.data.assetUrl
 import kotlinx.coroutines.Dispatchers
@@ -97,5 +107,25 @@ fun CoverImage(coverUrl: String?, title: String, modifier: Modifier = Modifier) 
             coverUrl, title, modifier.clip(RoundedCornerShape(6.dp)),
             placeholder = { CoverPlaceholder(title, Modifier.matchParentSize()) }
         )
+    }
+}
+
+/** PB04: ảnh đại diện tròn; chưa có ảnh thì hiện chữ cái đầu của tên */
+@Composable
+fun Avatar(url: String?, name: String, size: Dp, modifier: Modifier = Modifier) {
+    val fallback: @Composable BoxScope.() -> Unit = {
+        Box(Modifier.fillMaxSize().background(Color(0xFFDBEAFE)), contentAlignment = Alignment.Center) {
+            Text(
+                text = name.take(1).uppercase(),
+                color = Color(0xFF1D4ED8),
+                fontWeight = FontWeight.SemiBold,
+                fontSize = (size.value / 2.5f).sp
+            )
+        }
+    }
+    if (url.isNullOrBlank()) {
+        Box(modifier.size(size).clip(CircleShape)) { fallback() }
+    } else {
+        RemoteImage(url, name, modifier.size(size).clip(CircleShape), placeholder = fallback)
     }
 }

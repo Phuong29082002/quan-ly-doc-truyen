@@ -2,23 +2,20 @@
 import { useEffect } from "react";
 
 // components/GoogleLoginButton.tsx
-declare global {
-  interface Window {
-    google: any;
-  }
-}
-
 export function GoogleLoginButton({ onSuccess }: { onSuccess: (token: string) => void }) {
   useEffect(() => {
-    window.google?.accounts.id.initialize({
+    (window as any).google?.accounts?.id?.initialize({
       client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
       callback: (res: any) => onSuccess(res.credential),
     });
-    window.google?.accounts.id.renderButton(
-      document.getElementById("google-btn")!,
-      { theme: "outline", size: "large", width: 320 }
-    );
-  }, []);
+    const btn = document.getElementById("google-btn");
+    if (btn) {
+      (window as any).google?.accounts?.id?.renderButton(
+        btn,
+        { theme: "outline", size: "large", width: 320 }
+      );
+    }
+  }, [onSuccess]);
 
   return <div id="google-btn"></div>;
 }

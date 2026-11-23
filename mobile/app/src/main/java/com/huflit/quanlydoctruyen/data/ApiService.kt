@@ -4,13 +4,17 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import com.google.gson.JsonParser
+import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import retrofit2.HttpException
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.Multipart
+import retrofit2.http.Part
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
@@ -34,6 +38,11 @@ interface ApiService {
     // PB04: cập nhật hồ sơ, đổi mật khẩu (API trả 204 nên dùng Response<Unit>)
     @PUT("api/auth/me")
     suspend fun updateProfile(@Body body: UpdateProfileRequest): UserDto
+
+    // PB04: ảnh đại diện (multipart, field "file")
+    @Multipart
+    @POST("api/auth/me/avatar")
+    suspend fun uploadAvatar(@Part file: MultipartBody.Part): UserDto
 
     @POST("api/auth/change-password")
     suspend fun changePassword(@Body body: ChangePasswordRequest): Response<Unit>
@@ -63,6 +72,111 @@ interface ApiService {
     // PB18: gói đọc đang bán
     @GET("api/packages")
     suspend fun packages(): List<PackageItem>
+
+    // PB19, PB20, PB21, PB45: thanh toán
+    @GET("api/payments/providers")
+    suspend fun paymentProviders(): PaymentProviders
+
+    @POST("api/payments/package")
+    suspend fun payPackage(@Body body: PackagePaymentRequest): PaymentStart
+
+    @POST("api/payments/package/{packageId}/restore")
+    suspend fun restorePackage(@Path("packageId") packageId: Int): TransactionDto
+
+    @POST("api/payments/story")
+    suspend fun payStory(@Body body: StoryPaymentRequest): PaymentStart
+
+    @POST("api/payments/{id}/mock-result")
+    suspend fun mockResult(@Path("id") id: Int, @Body body: MockResultRequest): TransactionDto
+
+    @GET("api/payments/{id}")
+    suspend fun payment(@Path("id") id: Int): TransactionDto
+
+    @GET("api/payments/{id}/bank-qr")
+    suspend fun bankQr(@Path("id") id: Int): BankQr
+
+    // PB25: lịch sử thanh toán, gói và truyện đã mua
+    @GET("api/me/transactions")
+    suspend fun myTransactions(): List<TransactionDto>
+
+    @GET("api/me/library")
+    suspend fun myLibrary(): MyLibrary
+
+    // PB26, PB27: tiến độ đọc (API trả 204 khi chưa đọc truyện nên dùng Response)
+    @GET("api/me/reading")
+    suspend fun readingList(): List<ReadingItem>
+
+    @GET("api/me/reading/{storyId}")
+    suspend fun readingProgress(@Path("storyId") storyId: Int): Response<ReadingProgress>
+
+    @PUT("api/me/reading")
+    suspend fun saveProgress(@Body body: ReadingProgressRequest): ReadingProgress
+
+    @DELETE("api/me/reading/{storyId}")
+    suspend fun removeReading(@Path("storyId") storyId: Int): Response<Unit>
+
+    // PB28: theo dõi truyện
+    @GET("api/stories/{storyId}/follow")
+    suspend fun followStatus(@Path("storyId") storyId: Int): FollowStatus
+
+    @POST("api/stories/{storyId}/follow")
+    suspend fun follow(@Path("storyId") storyId: Int): FollowStatus
+
+    @DELETE("api/stories/{storyId}/follow")
+    suspend fun unfollow(@Path("storyId") storyId: Int): FollowStatus
+
+    @GET("api/me/follows")
+    suspend fun myFollows(): List<FollowedStory>
+
+    // PB29: thông báo
+    @GET("api/me/notifications")
+    suspend fun notifications(): List<AppNotification>
+
+    @GET("api/me/notifications/unread-count")
+    suspend fun unreadCount(): UnreadCount
+
+    @POST("api/me/notifications/{id}/read")
+    suspend fun markRead(@Path("id") id: Int): Response<Unit>
+
+    @POST("api/me/notifications/read-all")
+    suspend fun markAllRead(): Response<Unit>
+
+    // PB30, PB31: thảo luận theo chương
+    @GET("api/chapters/{chapterId}/comments")
+    suspend fun comments(@Path("chapterId") chapterId: Int): List<ChapterComment>
+
+    @POST("api/chapters/{chapterId}/comments")
+    suspend fun postComment(@Path("chapterId") chapterId: Int, @Body body: CommentRequest): ChapterComment
+
+    @DELETE("api/comments/{id}")
+    suspend fun deleteComment(@Path("id") id: Int): Response<Unit>
+
+    @POST("api/comments/{id}/report")
+    suspend fun reportComment(@Path("id") id: Int, @Body body: ReportRequest): Response<Unit>
+
+    // PB49: đánh giá sao, bảng xếp hạng
+    @GET("api/stories/{storyId}/rating")
+    suspend fun rating(@Path("storyId") storyId: Int): RatingSummary
+
+    @PUT("api/stories/{storyId}/rating")
+    suspend fun rate(@Path("storyId") storyId: Int, @Body body: RatingRequest): RatingSummary
+
+    @DELETE("api/stories/{storyId}/rating")
+    suspend fun removeRating(@Path("storyId") storyId: Int): RatingSummary
+
+    @GET("api/rankings")
+    suspend fun rankings(
+        @Query("type") type: String = "views",
+        @Query("period") period: String = "week",
+        @Query("limit") limit: Int = 30
+    ): List<RankingItem>
+
+    // PB50: gợi ý truyện
+    @GET("api/recommendations")
+    suspend fun recommendations(@Query("limit") limit: Int = 10): List<Recommendation>
+
+    @GET("api/stories/{storyId}/similar")
+    suspend fun similar(@Path("storyId") storyId: Int, @Query("limit") limit: Int = 6): List<Recommendation>
 }
 
 object ApiClient {
@@ -76,18 +190,21 @@ object ApiClient {
             Build.MODEL.contains("sdk_gphone") || Build.MODEL.contains("Emulator") ||
             Build.PRODUCT.contains("sdk")
 
+    private val apiHost: String = java.net.URI(BASE_URL).host
+
     /** Dùng chung cho Retrofit và tải ảnh (RemoteImage) */
     val http: OkHttpClient = OkHttpClient.Builder()
         .addInterceptor { chain ->
             val token = SessionManager.token
-            val request = if (token != null) {
+            // Chỉ gắn token khi gọi API của mình (không gửi token sang máy chủ khác, ví dụ ảnh mã QR)
+            val request = if (token != null && chain.request().url.host == apiHost) {
                 chain.request().newBuilder().header("Authorization", "Bearer $token").build()
             } else {
                 chain.request()
             }
             val response = chain.proceed(request)
             // Token hết hạn -> đăng xuất
-            if (response.code == 401 && token != null) {
+            if (response.code == 401 && token != null && chain.request().url.host == apiHost) {
                 Handler(Looper.getMainLooper()).post { SessionManager.logout() }
             }
             response

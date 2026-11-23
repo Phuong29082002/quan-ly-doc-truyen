@@ -47,7 +47,14 @@ public record StoryListItemDto(
     int ChapterCount,
     long ViewCount,
     DateTime CreatedAt,
-    DateTime UpdatedAt);
+    DateTime UpdatedAt,
+    // Chương mới nhất đã phát hành (trang chủ hiện "Chương 12: ...") và mô tả ngắn cho khung truyện đề cử
+    int? LatestChapterNumber = null,
+    string? LatestChapterTitle = null,
+    string? Description = null,
+    // PB49: điểm đánh giá
+    double RatingAverage = 0,
+    int RatingCount = 0);
 
 /// <summary>
 /// IsFree = đọc được miễn phí; IsPublished = false nghĩa là chương hẹn giờ (chỉ Admin thấy);
@@ -71,7 +78,9 @@ public record StoryDetailDto(
     List<GenreRefDto> Genres,
     List<ChapterListItemDto> Chapters,
     bool HasFullAccess,
-    string? AccessSource);
+    string? AccessSource,
+    double RatingAverage = 0,
+    int RatingCount = 0);
 
 public class StoryRequest
 {
@@ -139,3 +148,7 @@ public record ChapterContentDto(
 // ---------- Ảnh minh họa trong chương (PB43) ----------
 
 public record ImageUploadResponse(string Url);
+
+// ---------- Tìm kiếm không dấu, gợi ý tức thì (PB51) ----------
+
+public record StorySuggestionDto(int Id, string Title, string Author, string? CoverUrl);

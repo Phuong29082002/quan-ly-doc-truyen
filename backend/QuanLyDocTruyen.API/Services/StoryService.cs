@@ -9,6 +9,8 @@ namespace QuanLyDocTruyen.API.Services;
 public interface IStoryService
 {
     Task<PagedResult<StoryListItemDto>> SearchAsync(StoryQuery q);
+    /// <summary>PB51: gợi ý tức thì khi đang gõ</summary>
+    Task<List<StorySuggestionDto>> SuggestAsync(string? keyword, int limit);
     Task<StoryDetailDto> GetDetailAsync(int id, bool includeUnpublished, int? userId = null, bool isAdmin = false);
     Task<StoryDetailDto> CreateAsync(StoryRequest req);
     Task<StoryDetailDto> UpdateAsync(int id, StoryRequest req);
@@ -20,6 +22,22 @@ public class StoryService(AppDbContext db, IWebHostEnvironment env) : IStoryServ
     private static readonly string[] AllowedImageExtensions = [".jpg", ".jpeg", ".png", ".webp"];
     private const long MaxCoverSize = 2 * 1024 * 1024; // 2MB
 
+    public async Task<List<StorySuggestionDto>> SuggestAsync(string? keyword, int limit)
+    {
+        var k = TextSearch.Normalize(keyword);
+        if (k.Length == 0) return [];
+        limit = Math.Clamp(limit, 1, 10);
+
+        // Ưu tiên truyện có tên bắt đầu bằng từ khóa, sau đó tới truyện nhiều lượt đọc
+        return await db.Stories.AsNoTracking()
+            .Where(s => s.SearchText.Contains(k))
+            .OrderByDescending(s => s.SearchText.StartsWith(k))
+            .ThenByDescending(s => s.ViewCount)
+            .Take(limit)
+            .Select(s => new StorySuggestionDto(s.Id, s.Title, s.Author, s.CoverUrl))
+            .ToListAsync();
+    }
+
     // PB11, PB12: tìm kiếm + lọc + sắp xếp + phân trang
     public async Task<PagedResult<StoryListItemDto>> SearchAsync(StoryQuery q)
     {
@@ -28,8 +46,9 @@ public class StoryService(AppDbContext db, IWebHostEnvironment env) : IStoryServ
 
         if (!string.IsNullOrWhiteSpace(q.Keyword))
         {
-            var k = q.Keyword.Trim();
-            query = query.Where(s => s.Title.Contains(k) || s.Author.Contains(k));
+            // PB51: so khớp không dấu ("vu an" tìm ra "Vụ Án Phòng Số 7")
+            var k = TextSearch.Normalize(q.Keyword);
+            query = query.Where(s => s.SearchText.Contains(k));
         }
 
         if (q.GenreId is int genreId)
@@ -42,6 +61,7 @@ public class StoryService(AppDbContext db, IWebHostEnvironment env) : IStoryServ
         {
             "views" => query.OrderByDescending(s => s.ViewCount).ThenByDescending(s => s.UpdatedAt),
             "newest" => query.OrderByDescending(s => s.CreatedAt),
+            "rating" => query.OrderByDescending(s => s.RatingAverage).ThenByDescending(s => s.RatingCount),
             _ => query.OrderByDescending(s => s.UpdatedAt)
         };
 
@@ -50,18 +70,7 @@ public class StoryService(AppDbContext db, IWebHostEnvironment env) : IStoryServ
         var items = await query
             .Skip((q.Page - 1) * q.PageSize)
             .Take(q.PageSize)
-            .Select(s => new StoryListItemDto(
-                s.Id,
-                s.Title,
-                s.Author,
-                s.CoverUrl,
-                s.Status,
-                s.AccessType,
-                s.StoryGenres.Select(sg => new GenreRefDto(sg.GenreId, sg.Genre.Name)).ToList(),
-                s.Chapters.Count(c => c.PublishAt <= now),
-                s.ViewCount,
-                s.CreatedAt,
-                s.UpdatedAt))
+            .Select(StoryProjection.ListItem(now))
             .ToListAsync();
 
         var totalPages = (int)Math.Ceiling(total / (double)q.PageSize);
@@ -114,7 +123,8 @@ public class StoryService(AppDbContext db, IWebHostEnvironment env) : IStoryServ
         return new StoryDetailDto(
             story.Id, story.Title, story.Author, story.Description, story.CoverUrl,
             story.Status, story.AccessType, story.Price, story.FreeChapterCount, story.ViewCount,
-            story.CreatedAt, story.UpdatedAt, genres, chapterDtos, hasFullAccess, accessSource);
+            story.CreatedAt, story.UpdatedAt, genres, chapterDtos, hasFullAccess, accessSource,
+            story.RatingAverage, story.RatingCount);
     }
 
     // PB06: tạo truyện, gán nhiều thể loại
@@ -127,6 +137,7 @@ public class StoryService(AppDbContext db, IWebHostEnvironment env) : IStoryServ
         {
             Title = req.Title.Trim(),
             Author = req.Author.Trim(),
+            SearchText = TextSearch.ForStory(req.Title, req.Author),
             Description = req.Description?.Trim(),
             Status = req.Status,
             AccessType = req.AccessType,
@@ -152,6 +163,7 @@ public class StoryService(AppDbContext db, IWebHostEnvironment env) : IStoryServ
 
         story.Title = req.Title.Trim();
         story.Author = req.Author.Trim();
+        story.SearchText = TextSearch.ForStory(story.Title, story.Author);
         story.Description = req.Description?.Trim();
         story.Status = req.Status;
         story.AccessType = req.AccessType;

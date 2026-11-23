@@ -20,6 +20,8 @@ public interface IAuthService
     Task<AuthResponse> LoginAsync(LoginRequest req);
     Task<UserDto> GetMeAsync(int userId);
     Task<UserDto> UpdateProfileAsync(int userId, UpdateProfileRequest req);
+    Task<UserDto> UpdateAvatarAsync(int userId, IFormFile? file);
+    Task<UserAvatar?> GetAvatarAsync(int userId);
     Task ChangePasswordAsync(int userId, ChangePasswordRequest req);
     // PB57: Google login
     Task<AuthResponse> GoogleLoginAsync(string idToken);
@@ -36,6 +38,7 @@ public class AuthService : IAuthService
     private readonly IMemoryCache _cache;
     private readonly IEmailService _emailService;
     private readonly string _googleClientId;
+    private static readonly HashSet<string> AllowedAvatarTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
     public AuthService(
         AppDbContext db,
@@ -89,7 +92,7 @@ public class AuthService : IAuthService
             throw new UnauthorizedException("Sai tên đăng nhập hoặc mật khẩu");
 
         if (user.Status == UserStatus.Suspended)
-            throw new ForbiddenException("Tài khoản đã bị tạm ngừng");
+            throw new ForbiddenException("Tài khoản đã bị tạm ngừng" + (string.IsNullOrWhiteSpace(user.StatusReason) ? "" : $". Lý do: {user.StatusReason}"));
 
         return CreateAuthResponse(user);
     }
@@ -109,6 +112,36 @@ public class AuthService : IAuthService
         await _db.SaveChangesAsync();
         return ToDto(user);
     }
+
+    public async Task<UserDto> UpdateAvatarAsync(int userId, IFormFile? file)
+    {
+        var user = await _db.Users.FindAsync(userId) ?? throw new NotFoundException("Không tìm thấy tài khoản");
+        if (file is null || file.Length == 0)
+            throw new BadRequestException("Vui lòng chọn ảnh");
+        if (file.Length > 2 * 1024 * 1024)
+            throw new BadRequestException("Ảnh tối đa 2MB");
+        if (!AllowedAvatarTypes.Contains(file.ContentType.ToLowerInvariant()))
+            throw new BadRequestException("Chỉ hỗ trợ JPG, PNG, WEBP hoặc GIF");
+
+        await using var stream = new MemoryStream();
+        await file.CopyToAsync(stream);
+        var imageData = stream.ToArray();
+
+        var avatar = await _db.UserAvatars.FindAsync(userId);
+        if (avatar is null)
+        {
+            avatar = new UserAvatar { UserId = userId, User = user };
+            _db.UserAvatars.Add(avatar);
+        }
+        avatar.ImageData = imageData;
+        avatar.ContentType = file.ContentType.ToLowerInvariant();
+        user.AvatarUrl = $"/api/auth/users/{userId}/avatar";
+        await _db.SaveChangesAsync();
+        return ToDto(user);
+    }
+
+    public Task<UserAvatar?> GetAvatarAsync(int userId) =>
+        _db.UserAvatars.AsNoTracking().FirstOrDefaultAsync(x => x.UserId == userId);
 
     // PB04: đổi mật khẩu (phải nhập đúng mật khẩu cũ)
     public async Task ChangePasswordAsync(int userId, ChangePasswordRequest req)
@@ -247,5 +280,5 @@ public class AuthService : IAuthService
     }
 
     private static UserDto ToDto(User u) =>
-        new(u.Id, u.Username, u.Email, u.DisplayName, u.Role.ToString());
+        new(u.Id, u.Username, u.Email, u.DisplayName, u.Role.ToString(), u.AvatarUrl, u.Status.ToString(), u.StatusReason);
 }

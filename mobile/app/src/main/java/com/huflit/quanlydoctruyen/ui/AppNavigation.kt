@@ -1,44 +1,146 @@
 package com.huflit.quanlydoctruyen.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.huflit.quanlydoctruyen.data.PaymentStart
+import com.huflit.quanlydoctruyen.ui.screens.FollowingScreen
 import com.huflit.quanlydoctruyen.ui.screens.HomeScreen
+import com.huflit.quanlydoctruyen.ui.screens.NotificationsScreen
+import com.huflit.quanlydoctruyen.ui.screens.RankingScreen
+import com.huflit.quanlydoctruyen.ui.screens.LibraryScreen
 import com.huflit.quanlydoctruyen.ui.screens.LoginScreen
+import com.huflit.quanlydoctruyen.ui.screens.PackagesScreen
+import com.huflit.quanlydoctruyen.ui.screens.PaymentScreen
 import com.huflit.quanlydoctruyen.ui.screens.ProfileScreen
 import com.huflit.quanlydoctruyen.ui.screens.ReadChapterScreen
+import com.huflit.quanlydoctruyen.ui.screens.ReadingListScreen
 import com.huflit.quanlydoctruyen.ui.screens.RegisterScreen
 import com.huflit.quanlydoctruyen.ui.screens.StoryDetailScreen
 
+private const val STORY_ROUTE = "story/{id}"
 private const val READ_ROUTE = "story/{id}/chapter/{number}"
+private const val PAYMENT_ROUTE = "payment/{txId}?provider={provider}"
 
 @Composable
 fun AppNavigation() {
     val nav = rememberNavController()
+    val uriHandler = LocalUriHandler.current
+
+    // PB19, PB21, PB45: giao dịch đã tạo -> VNPay thì mở trình duyệt, rồi vào màn hình thanh toán / chờ kết quả
+    val onPaymentStarted: (PaymentStart) -> Unit = { start ->
+        val url = start.paymentUrl
+        if (url != null) uriHandler.openUri(url)
+        nav.navigate("payment/${start.transactionId}?provider=${start.provider}")
+    }
+    val toLogin: () -> Unit = { nav.navigate("login") }
+    val toPackages: () -> Unit = { nav.navigate("packages") }
 
     NavHost(nav, startDestination = "home") {
         composable("home") {
             HomeScreen(
                 onOpenStory = { id -> nav.navigate("story/$id") },
-                onLogin = { nav.navigate("login") },
-                onProfile = { nav.navigate("profile") }
+                onLogin = toLogin,
+                onProfile = { nav.navigate("profile") },
+                onOpenPackages = toPackages,
+                onOpenReading = { nav.navigate("reading") },
+                onContinueReading = { storyId, chapter -> nav.navigate("story/$storyId/chapter/$chapter") },
+                onOpenNotifications = { nav.navigate("notifications") },
+                onOpenFollowing = { nav.navigate("following") },
+                onOpenRanking = { nav.navigate("ranking") }
             )
+        }
+
+        // PB28: truyện theo dõi
+        composable("following") {
+            FollowingScreen(
+                onOpenStory = { id -> nav.navigate("story/$id") },
+                onRead = { id, n -> nav.navigate("story/$id/chapter/$n") },
+                onBack = { nav.popBackStack() }
+            )
+        }
+
+        // PB29: thông báo
+        composable("notifications") {
+            NotificationsScreen(
+                onRead = { id, n -> nav.navigate("story/$id/chapter/$n") },
+                onOpenStory = { id -> nav.navigate("story/$id") },
+                onBack = { nav.popBackStack() }
+            )
+        }
+
+        // PB49: bảng xếp hạng
+        composable("ranking") {
+            RankingScreen(onOpenStory = { id -> nav.navigate("story/$id") }, onBack = { nav.popBackStack() })
         }
 
         // PB04: hồ sơ cá nhân
         composable("profile") {
-            ProfileScreen(onBack = { nav.popBackStack() })
+            ProfileScreen(onBack = { nav.popBackStack() }, onOpenLibrary = { nav.navigate("library") })
         }
 
-        composable("story/{id}", arguments = listOf(navArgument("id") { type = NavType.IntType })) { entry ->
+        // PB25: gói đang dùng, truyện đã mua, lịch sử thanh toán
+        composable("library") {
+            LibraryScreen(
+                onOpenStory = { id -> nav.navigate("story/$id") },
+                onOpenPayment = { txId -> nav.navigate("payment/$txId?provider=Pending") },
+                onBack = { nav.popBackStack() }
+            )
+        }
+
+        // PB27: truyện đang đọc
+        composable("reading") {
+            ReadingListScreen(
+                onContinue = { storyId, chapter -> nav.navigate("story/$storyId/chapter/$chapter") },
+                onOpenStory = { id -> nav.navigate("story/$id") },
+                onBack = { nav.popBackStack() }
+            )
+        }
+
+        // PB18, PB19, PB20: gói đọc
+        composable("packages") {
+            PackagesScreen(onNeedLogin = toLogin, onPaymentStarted = onPaymentStarted, onBack = { nav.popBackStack() })
+        }
+
+        composable(
+            PAYMENT_ROUTE,
+            arguments = listOf(
+                navArgument("txId") { type = NavType.IntType },
+                navArgument("provider") { type = NavType.StringType; defaultValue = "Mock" }
+            )
+        ) { entry ->
+            PaymentScreen(
+                transactionId = entry.arguments?.getInt("txId") ?: 0,
+                provider = entry.arguments?.getString("provider") ?: "Mock",
+                // Mở lại trang truyện mới để cập nhật nhãn "Đã mở khóa" (bỏ các màn hình cũ của truyện đó)
+                onOpenStory = { id ->
+                    nav.navigate("story/$id") {
+                        popUpTo(STORY_ROUTE) { inclusive = true }
+                    }
+                },
+                onOpenLibrary = {
+                    nav.navigate("library") {
+                        popUpTo("home")
+                    }
+                },
+                onBack = { nav.popBackStack() }
+            )
+        }
+
+        composable(STORY_ROUTE, arguments = listOf(navArgument("id") { type = NavType.IntType })) { entry ->
             val id = entry.arguments?.getInt("id") ?: 0
             StoryDetailScreen(
                 storyId = id,
                 onRead = { number -> nav.navigate("story/$id/chapter/$number") },
-                onBack = { nav.popBackStack() }
+                onOpenStory = { other -> nav.navigate("story/$other") },
+                onBack = { nav.popBackStack() },
+                onOpenPackages = toPackages,
+                onNeedLogin = toLogin,
+                onPaymentStarted = onPaymentStarted
             )
         }
 
@@ -59,8 +161,10 @@ fun AppNavigation() {
                         popUpTo(READ_ROUTE) { inclusive = true }
                     }
                 },
-                onLogin = { nav.navigate("login") },
-                onBack = { nav.popBackStack() }
+                onLogin = toLogin,
+                onBack = { nav.popBackStack() },
+                onOpenPackages = toPackages,
+                onPaymentStarted = onPaymentStarted
             )
         }
 

@@ -6,6 +6,7 @@ namespace QuanLyDocTruyen.API.Data;
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
     public DbSet<User> Users => Set<User>();
+    public DbSet<UserAvatar> UserAvatars => Set<UserAvatar>();
     public DbSet<Genre> Genres => Set<Genre>();
     public DbSet<Story> Stories => Set<Story>();
     public DbSet<StoryGenre> StoryGenres => Set<StoryGenre>();
@@ -21,6 +22,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<ChapterView> ChapterViews => Set<ChapterView>();
     public DbSet<Comment> Comments => Set<Comment>();
     public DbSet<CommentReport> CommentReports => Set<CommentReport>();
+    public DbSet<Rating> Ratings => Set<Rating>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder b)
     {
@@ -34,9 +36,16 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         m.Entity<PackageStory>().HasKey(x => new { x.PackageId, x.StoryId });
         m.Entity<ReadingProgress>().HasKey(x => new { x.UserId, x.StoryId });
         m.Entity<Follow>().HasKey(x => new { x.UserId, x.StoryId });
+        m.Entity<Rating>().HasKey(x => new { x.UserId, x.StoryId });
+        m.Entity<Rating>().ToTable(t => t.HasCheckConstraint("CK_Rating_Score", "[Score] BETWEEN 1 AND 5"));
+        m.Entity<Follow>().HasIndex(x => x.CreatedAt);
+        m.Entity<Transaction>().HasIndex(x => x.CreatedAt);
 
         m.Entity<User>().HasIndex(x => x.Username).IsUnique();
         m.Entity<User>().HasIndex(x => x.Email).IsUnique();
+        m.Entity<UserAvatar>().HasKey(x => x.UserId);
+        m.Entity<UserAvatar>().Property(x => x.ContentType).HasMaxLength(100);
+        m.Entity<UserAvatar>().HasOne(x => x.User).WithOne(x => x.Avatar).HasForeignKey<UserAvatar>(x => x.UserId);
         m.Entity<Genre>().HasIndex(x => x.Name).IsUnique();
         m.Entity<Chapter>().HasIndex(x => new { x.StoryId, x.Number }).IsUnique();
         m.Entity<ChapterView>().HasIndex(x => x.ViewedAt);

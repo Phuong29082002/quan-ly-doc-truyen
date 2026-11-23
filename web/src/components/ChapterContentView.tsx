@@ -5,14 +5,18 @@ interface Props {
   content: string;
   fontSize?: number;
   dark?: boolean;
+  lineHeight?: number;
+  serif?: boolean;
+  // PB48: đoạn đang được đọc to (chỉ số trong danh sách khối)
+  activeBlock?: number | null;
 }
 
 // PB43: hiển thị nội dung chương xen kẽ chữ và ảnh minh họa
-export default function ChapterContentView({ content, fontSize = 18, dark = false }: Props) {
+export default function ChapterContentView({ content, fontSize = 18, dark = false, lineHeight = 1.9, serif = true, activeBlock = null }: Props) {
   const blocks = parseChapterContent(content);
 
   return (
-    <article className="leading-loose" style={{ fontSize }}>
+    <article className={serif ? "font-story" : "font-sans"} style={{ fontSize, lineHeight }}>
       {blocks.map((b, i) =>
         b.type === "image" ? (
           <figure key={i} className="my-6">
@@ -25,7 +29,10 @@ export default function ChapterContentView({ content, fontSize = 18, dark = fals
             {b.alt && <figcaption className="mt-2 text-center text-sm italic opacity-60">{b.alt}</figcaption>}
           </figure>
         ) : (
-          <p key={i} className="mb-4">{b.text}</p>
+          <p key={i} data-block={i}
+            className={`mb-[0.9em] rounded transition-colors ${activeBlock === i ? (dark ? "bg-lamp/15" : "bg-lamp-soft") : ""}`}>
+            {b.text}
+          </p>
         ),
       )}
     </article>

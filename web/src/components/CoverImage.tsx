@@ -1,21 +1,41 @@
+import { colorOf } from "../utils/coverColor";
 import { assetUrl } from "../api/client";
 
 interface Props {
   src: string | null | undefined;
   title: string;
   className?: string;
+  /** Hiện dạng cuốn sách (gáy sách + bóng) */
+  book?: boolean;
+  /** Ảnh nhỏ trong danh sách: bìa tạm chỉ hiện chữ cái đầu */
+  small?: boolean;
 }
 
-// Ảnh bìa; chưa có ảnh thì hiện khung màu kèm tên truyện
-export default function CoverImage({ src, title, className = "" }: Props) {
-  const url = assetUrl(src);
-  if (url) return <img src={url} alt={title} className={`object-cover ${className}`} />;
+// Màu bìa tạm (chưa có ảnh) chọn theo tên truyện để mỗi truyện một màu
 
+
+// Ảnh bìa; chưa có ảnh thì hiện bìa màu kèm tên truyện
+export default function CoverImage({ src, title, className = "", book = false, small = false }: Props) {
+  const url = assetUrl(src);
+  const wrap = `${book ? "book" : ""} ${className}`;
+  if (url) return <img src={url} alt={title} loading="lazy" className={`object-cover ${wrap}`} />;
+
+  if (small) {
+    return (
+      <div aria-hidden style={{ backgroundColor: colorOf(title) }} className={`grid place-items-center font-story font-semibold text-white/90 ${wrap}`}>
+        {title.trim().slice(0, 1)}
+      </div>
+    );
+  }
+
+  // Bìa tạm: nền màu theo tên truyện, chữ cái đầu lớn mờ phía sau, tên truyện ở chân bìa
+  const color = colorOf(title);
   return (
-    <div
-      className={`flex items-center justify-center bg-linear-to-br from-blue-500 to-indigo-700 p-3 text-center text-sm font-semibold text-white ${className}`}
-    >
-      {title}
+    <div style={{ backgroundColor: color, backgroundImage: `radial-gradient(120% 80% at 80% 0%, rgb(255 255 255 / 0.16), transparent 60%), linear-gradient(to top, rgb(0 0 0 / 0.35), transparent 55%)` }}
+      className={`relative flex flex-col justify-end gap-2 overflow-hidden p-3 pl-4 text-white ${wrap}`}>
+      <span aria-hidden className="pointer-events-none absolute -right-2 top-0 font-story text-[7rem] font-bold leading-none text-white/10">{title.trim().slice(0, 1)}</span>
+      <span className="relative h-px w-8 bg-lamp" />
+      <span className="relative font-story text-sm font-semibold leading-snug">{title}</span>
     </div>
   );
 }

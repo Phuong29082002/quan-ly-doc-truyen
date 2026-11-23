@@ -32,6 +32,20 @@ public class AuthController(IAuthService auth) : ControllerBase
     public async Task<ActionResult<UserDto>> UpdateMe(UpdateProfileRequest req)
         => Ok(await auth.UpdateProfileAsync(User.GetUserId()!.Value, req));
 
+    [Authorize]
+    [HttpPost("me/avatar")]
+    [Consumes("multipart/form-data")]
+    public async Task<ActionResult<UserDto>> UpdateAvatar(IFormFile file)
+        => Ok(await auth.UpdateAvatarAsync(User.GetUserId()!.Value, file));
+
+    [AllowAnonymous]
+    [HttpGet("users/{userId:int}/avatar")]
+    public async Task<IActionResult> GetAvatar(int userId)
+    {
+        var avatar = await auth.GetAvatarAsync(userId);
+        return avatar is null ? NotFound() : File(avatar.ImageData, avatar.ContentType);
+    }
+
     // PB04: đổi mật khẩu
     [Authorize]
     [HttpPost("change-password")]
@@ -40,7 +54,6 @@ public class AuthController(IAuthService auth) : ControllerBase
         await auth.ChangePasswordAsync(User.GetUserId()!.Value, req);
         return NoContent();
     }
-
     // PB57: Google login
     [HttpPost("google")]
     public async Task<ActionResult<AuthResponse>> GoogleLogin(GoogleLoginRequest req)

@@ -15,6 +15,11 @@ public class StoriesController(IStoryService stories, IChapterService chapters) 
     public async Task<ActionResult<PagedResult<StoryListItemDto>>> Search([FromQuery] StoryQuery q)
         => Ok(await stories.SearchAsync(q));
 
+    // PB51: gợi ý tức thì (không dấu)
+    [HttpGet("suggest")]
+    public async Task<ActionResult<List<StorySuggestionDto>>> Suggest([FromQuery] string? q, [FromQuery] int limit = 6)
+        => Ok(await stories.SuggestAsync(q, limit));
+
     // PB13: chi tiết truyện. Admin thấy cả chương hẹn giờ chưa phát hành
     [HttpGet("{id:int}")]
     public async Task<ActionResult<StoryDetailDto>> Detail(int id)

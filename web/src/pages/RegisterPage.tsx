@@ -68,8 +68,8 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="max-w-sm mx-auto bg-white border rounded-lg p-6 mt-6">
-      <h1 className="text-2xl font-bold mb-6 text-center">Đăng ký</h1>
+    <div className="mx-auto mt-8 max-w-sm rounded-2xl border bg-white p-7 shadow-sm">
+      <h1 className="mb-6 text-center font-story text-3xl font-semibold">Đăng ký</h1>
 
       {serverError && (
         <div className="mb-4 rounded bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">{serverError}</div>
@@ -90,7 +90,7 @@ export default function RegisterPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded bg-blue-600 py-2 text-white font-medium hover:bg-blue-700 disabled:opacity-60"
+          className="w-full rounded-full bg-ink py-2.5 font-medium text-white hover:bg-ink-soft disabled:opacity-60"
         >
           {loading ? "Đang đăng ký..." : "Đăng ký"}
         </button>

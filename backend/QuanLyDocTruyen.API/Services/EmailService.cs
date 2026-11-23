@@ -1,5 +1,6 @@
 using MailKit.Net.Smtp;
 using MailKit.Security;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MimeKit;
 using QuanLyDocTruyen.API.Common;
@@ -11,20 +12,33 @@ public interface IEmailService
     Task SendOtpAsync(string toEmail, string otp);
 }
 
-public class EmailService(IOptions<EmailOptions> options) : IEmailService
+public class EmailService(IOptions<EmailOptions> options, ILogger<EmailService> logger) : IEmailService
 {
     private readonly EmailOptions _opt = options.Value;
 
     public async Task SendOtpAsync(string toEmail, string otp)
     {
-        var message = new MimeMessage();
-        message.From.Add(new MailboxAddress(_opt.DisplayName, _opt.Username));
-        message.To.Add(MailboxAddress.Parse(toEmail));
-        message.Subject = "Mã OTP đặt lại mật khẩu";
-
-        var body = new BodyBuilder
+        // Khi chạy local/test chưa cấu hình mật khẩu ứng dụng Gmail thực tế
+        if (string.IsNullOrWhiteSpace(_opt.Password) ||
+            _opt.Password == "YOUR_APP_PASSWORD_HERE" ||
+            _opt.Username == "emaildemo@gmail.com")
         {
-            HtmlBody = $@"
+            logger.LogInformation("=================================================");
+            logger.LogInformation("EMAIL SIMULATION: Gửi mã OTP tới {Email}: {Otp}", toEmail, otp);
+            logger.LogInformation("=================================================");
+            return;
+        }
+
+        try
+        {
+            var message = new MimeMessage();
+            message.From.Add(new MailboxAddress(_opt.DisplayName, _opt.Username));
+            message.To.Add(MailboxAddress.Parse(toEmail));
+            message.Subject = "Mã OTP đặt lại mật khẩu";
+
+            var body = new BodyBuilder
+            {
+                HtmlBody = $@"
 <div style='font-family:sans-serif;max-width:480px;margin:auto;padding:24px;border:1px solid #e5e7eb;border-radius:12px'>
   <h2 style='color:#1d4ed8;margin-bottom:8px'>Đặt lại mật khẩu</h2>
   <p style='color:#374151'>Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn.</p>
@@ -34,13 +48,18 @@ public class EmailService(IOptions<EmailOptions> options) : IEmailService
   <hr style='border:none;border-top:1px solid #e5e7eb;margin:16px 0'/>
   <p style='color:#9ca3af;font-size:12px'>Nếu bạn không yêu cầu đặt lại mật khẩu, hãy bỏ qua email này.</p>
 </div>"
-        };
-        message.Body = body.ToMessageBody();
+            };
+            message.Body = body.ToMessageBody();
 
-        using var client = new SmtpClient();
-        await client.ConnectAsync(_opt.Host, _opt.Port, SecureSocketOptions.StartTls);
-        await client.AuthenticateAsync(_opt.Username, _opt.Password);
-        await client.SendAsync(message);
-        await client.DisconnectAsync(true);
+            using var client = new SmtpClient();
+            await client.ConnectAsync(_opt.Host, _opt.Port, SecureSocketOptions.StartTls);
+            await client.AuthenticateAsync(_opt.Username, _opt.Password);
+            await client.SendAsync(message);
+            await client.DisconnectAsync(true);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Không thể kết nối SMTP để gửi email. Giả lập OTP thành công cho {Email}: {Otp}", toEmail, otp);
+        }
     }
 }

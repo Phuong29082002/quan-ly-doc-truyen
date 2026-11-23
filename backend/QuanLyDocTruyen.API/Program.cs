@@ -12,6 +12,9 @@ using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Cấu hình riêng trên máy (tài khoản ngân hàng nhận tiền, khóa VNPay...): không đưa lên GitHub
+builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
+
 builder.Services.AddDbContext<AppDbContext>(o =>
     o.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
 
@@ -32,6 +35,17 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             NameClaimType = "name",
             RoleClaimType = "role"
         };
+        // PB46: SignalR (WebSocket) không gửi được header nên token đi kèm query ?access_token=
+        o.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = ctx =>
+            {
+                var token = ctx.Request.Query["access_token"];
+                if (!string.IsNullOrEmpty(token) && ctx.HttpContext.Request.Path.StartsWithSegments("/hubs"))
+                    ctx.Token = token;
+                return Task.CompletedTask;
+            }
+        };
     });
 builder.Services.AddAuthorization();
 
@@ -46,6 +60,24 @@ builder.Services.AddScoped<IStoryService, StoryService>();
 builder.Services.AddScoped<IChapterService, ChapterService>();
 builder.Services.AddScoped<IPackageService, PackageService>();
 builder.Services.AddScoped<IImageUploadService, ImageUploadService>();
+builder.Services.AddScoped<IReadingService, ReadingService>();
+builder.Services.AddScoped<IPaymentService, PaymentService>();
+builder.Services.Configure<VnPayOptions>(builder.Configuration.GetSection("VnPay"));
+builder.Services.Configure<PaymentOptions>(builder.Configuration.GetSection("Payment"));
+builder.Services.Configure<BankQrOptions>(builder.Configuration.GetSection("BankQr"));
+
+// Sprint 4: theo dõi, thông báo, thảo luận, quản lý thành viên
+builder.Services.AddMemoryCache();
+builder.Services.AddSignalR();
+builder.Services.AddScoped<IFollowService, FollowService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<ICommentService, CommentService>();
+builder.Services.AddScoped<IAdminUserService, AdminUserService>();
+builder.Services.AddScoped<IRatingService, RatingService>();
+builder.Services.AddScoped<IRankingService, RankingService>();
+builder.Services.AddScoped<IRecommendationService, RecommendationService>();
+builder.Services.AddScoped<IStatsService, StatsService>();
+builder.Services.AddHostedService<NewChapterNotifier>();
 
 builder.Services.AddControllers().AddJsonOptions(o =>
 {
@@ -58,10 +90,16 @@ builder.Services.AddOpenApi();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
+// Địa chỉ trang Web được gọi API (thêm địa chỉ khác qua cấu hình Cors:Origins, ví dụ khi chạy bằng Docker)
+var corsOrigins = builder.Configuration.GetSection("Cors:Origins").Get<string[]>() is { Length: > 0 } configured
+    ? configured
+    : ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:4173"];
 builder.Services.AddCors(o => o.AddPolicy("Frontend", p => p
-    .WithOrigins("http://localhost:5173")
+    .WithOrigins(corsOrigins)
     .AllowAnyHeader()
-    .AllowAnyMethod()));
+    .AllowAnyMethod()
+    .AllowCredentials()
+    .WithExposedHeaders("Content-Disposition")));
 
 var app = builder.Build();
 
@@ -84,6 +122,8 @@ app.UseStaticFiles(); // phục vụ ảnh bìa trong wwwroot/uploads
 app.UseCors("Frontend");
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<UserStatusMiddleware>();
 app.MapControllers();
+app.MapHub<QuanLyDocTruyen.API.Hubs.NotificationHub>("/hubs/notifications");
 
 app.Run();

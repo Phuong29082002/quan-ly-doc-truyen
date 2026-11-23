@@ -1,3 +1,4 @@
+import { lazy } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 import AuthProvider from "./auth/AuthProvider";
 import RequireAdmin from "./auth/RequireAdmin";
@@ -9,16 +10,29 @@ import ReadChapterPage from "./pages/ReadChapterPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import AdminPage from "./pages/AdminPage";
-import AdminGenresPage from "./pages/admin/AdminGenresPage";
-import AdminStoriesPage from "./pages/admin/AdminStoriesPage";
-import AdminStoryFormPage from "./pages/admin/AdminStoryFormPage";
-import AdminChapterFormPage from "./pages/admin/AdminChapterFormPage";
-import AdminPackagesPage from "./pages/admin/AdminPackagesPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import PricingPage from "./pages/PricingPage";
 import ProfilePage from "./pages/ProfilePage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
+import MockPaymentPage from "./pages/MockPaymentPage";
+import BankTransferPage from "./pages/BankTransferPage";
+import PaymentResultPage from "./pages/PaymentResultPage";
+import ReadingListPage from "./pages/ReadingListPage";
+import RankingPage from "./pages/RankingPage";
+import FollowingPage from "./pages/FollowingPage";
+import NotificationsPage from "./pages/NotificationsPage";
+
+// Trang quản trị tải riêng khi cần, người đọc không phải tải phần này
+const AdminGenresPage = lazy(() => import("./pages/admin/AdminGenresPage"));
+const AdminStoriesPage = lazy(() => import("./pages/admin/AdminStoriesPage"));
+const AdminStoryFormPage = lazy(() => import("./pages/admin/AdminStoryFormPage"));
+const AdminChapterFormPage = lazy(() => import("./pages/admin/AdminChapterFormPage"));
+const AdminPackagesPage = lazy(() => import("./pages/admin/AdminPackagesPage"));
+const AdminTransactionsPage = lazy(() => import("./pages/admin/AdminTransactionsPage"));
+const AdminModerationPage = lazy(() => import("./pages/admin/AdminModerationPage"));
+const AdminUsersPage = lazy(() => import("./pages/admin/AdminUsersPage"));
+const AdminStatsPage = lazy(() => import("./pages/admin/AdminStatsPage"));
 
 export default function App() {
   return (
@@ -35,6 +49,13 @@ export default function App() {
             <Route path="/dat-lai-mat-khau" element={<ResetPasswordPage />} />
             <Route path="/goi-doc" element={<PricingPage />} />
             <Route path="/tai-khoan" element={<RequireAuth><ProfilePage /></RequireAuth>} />
+            <Route path="/dang-doc" element={<RequireAuth><ReadingListPage /></RequireAuth>} />
+            <Route path="/xep-hang" element={<RankingPage />} />
+            <Route path="/theo-doi" element={<RequireAuth><FollowingPage /></RequireAuth>} />
+            <Route path="/thong-bao" element={<RequireAuth><NotificationsPage /></RequireAuth>} />
+            <Route path="/thanh-toan/gia-lap/:id" element={<RequireAuth><MockPaymentPage /></RequireAuth>} />
+            <Route path="/thanh-toan/chuyen-khoan/:id" element={<RequireAuth><BankTransferPage /></RequireAuth>} />
+            <Route path="/thanh-toan/ket-qua/:id" element={<RequireAuth><PaymentResultPage /></RequireAuth>} />
 
             <Route path="/admin" element={<RequireAdmin><AdminPage /></RequireAdmin>}>
               <Route index element={<Navigate to="truyen" replace />} />
@@ -45,6 +66,10 @@ export default function App() {
               <Route path="truyen/:id/chuong/moi" element={<AdminChapterFormPage />} />
               <Route path="chuong/:chapterId" element={<AdminChapterFormPage />} />
               <Route path="goi-doc" element={<AdminPackagesPage />} />
+              <Route path="giao-dich" element={<AdminTransactionsPage />} />
+              <Route path="kiem-duyet" element={<AdminModerationPage />} />
+              <Route path="thanh-vien" element={<AdminUsersPage />} />
+              <Route path="thong-ke" element={<AdminStatsPage />} />
             </Route>
 
             <Route path="*" element={<NotFoundPage />} />
