@@ -20,6 +20,7 @@ import ReadingListPage from "./pages/ReadingListPage";
 import RankingPage from "./pages/RankingPage";
 import FollowingPage from "./pages/FollowingPage";
 import NotificationsPage from "./pages/NotificationsPage";
+import BadgesPage from "./pages/BadgesPage";
 
 // Trang quản trị tải riêng khi cần, người đọc không phải tải phần này
 const AdminGenresPage = lazy(() => import("./pages/admin/AdminGenresPage"));
@@ -48,6 +49,7 @@ export default function App() {
             <Route path="/dang-doc" element={<RequireAuth><ReadingListPage /></RequireAuth>} />
             <Route path="/xep-hang" element={<RankingPage />} />
             <Route path="/theo-doi" element={<RequireAuth><FollowingPage /></RequireAuth>} />
+            <Route path="/huy-hieu" element={<RequireAuth><BadgesPage /></RequireAuth>} />
             <Route path="/thong-bao" element={<RequireAuth><NotificationsPage /></RequireAuth>} />
             <Route path="/thanh-toan/gia-lap/:id" element={<RequireAuth><MockPaymentPage /></RequireAuth>} />
             <Route path="/thanh-toan/chuyen-khoan/:id" element={<RequireAuth><BankTransferPage /></RequireAuth>} />

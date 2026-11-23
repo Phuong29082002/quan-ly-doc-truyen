@@ -100,6 +100,7 @@ public static class DbSeeder
         await LibrarySeed.SeedAsync(db);
         await OriginalSeed.SeedAsync(db);
         await SeedSprint5Async(db);
+        await SeedBadgesAsync(db);
     }
 
     /// <summary>
@@ -344,6 +345,25 @@ public static class DbSeeder
             });
             await db.SaveChangesAsync();
         }
+    }
+
+       
+    private static async Task SeedBadgesAsync(AppDbContext db)
+    {
+        var all = new[]
+        {
+            new Badge { Code = "CHAPTERS_1",   Name = "Bước chân đầu tiên", Description = "Đọc chương đầu tiên",      Icon = "📖", Criteria = BadgeCriteria.ChaptersRead, Threshold = 1 },
+            new Badge { Code = "CHAPTERS_10",  Name = "Mọt sách",           Description = "Đọc 10 chương",             Icon = "📚", Criteria = BadgeCriteria.ChaptersRead, Threshold = 10 },
+            new Badge { Code = "CHAPTERS_50",  Name = "Độc giả chăm chỉ",   Description = "Đọc 50 chương",             Icon = "🏆", Criteria = BadgeCriteria.ChaptersRead, Threshold = 50 },
+            new Badge { Code = "CHAPTERS_100", Name = "Thư viện sống",      Description = "Đọc 100 chương",            Icon = "👑", Criteria = BadgeCriteria.ChaptersRead, Threshold = 100 },
+            new Badge { Code = "STREAK_3",     Name = "Khởi động",          Description = "Đọc liên tục 3 ngày",       Icon = "🔥", Criteria = BadgeCriteria.Streak, Threshold = 3 },
+            new Badge { Code = "STREAK_7",     Name = "Một tuần bền bỉ",    Description = "Đọc liên tục 7 ngày",       Icon = "⚡", Criteria = BadgeCriteria.Streak, Threshold = 7 },
+            new Badge { Code = "STREAK_30",    Name = "Một tháng không nghỉ", Description = "Đọc liên tục 30 ngày",    Icon = "💎", Criteria = BadgeCriteria.Streak, Threshold = 30 },
+        };
+
+        var existing = await db.Badges.Select(b => b.Code).ToListAsync();
+        db.Badges.AddRange(all.Where(b => !existing.Contains(b.Code)));
+        await db.SaveChangesAsync();
     }
 
     private static Story NewStory(

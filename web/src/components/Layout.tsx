@@ -84,6 +84,7 @@ export default function Layout() {
       <NavLink to="/goi-doc" className={navClass}>Gói đọc</NavLink>
       {user && <NavLink to="/dang-doc" className={navClass}>Đang đọc</NavLink>}
       {user && <NavLink to="/theo-doi" className={navClass}>Theo dõi</NavLink>}
+      {user && <NavLink to="/huy-hieu" className={navClass}>Huy hiệu</NavLink>}
       {/* PB03: chỉ Admin mới thấy menu Quản trị */}
       {isAdmin && <NavLink to="/admin" className={navClass}>Quản trị</NavLink>}
     </>
@@ -123,6 +124,7 @@ export default function Layout() {
                         {isAdmin && <p className="mt-0.5 text-xs font-medium text-amber-700">Quản trị viên</p>}
                       </div>
                       <Link role="menuitem" to="/tai-khoan" className="block px-4 py-2 hover:bg-gray-50">Tài khoản của tôi</Link>
+                      <Link role="menuitem" to="/huy-hieu" className="block px-4 py-2 hover:bg-gray-50">Huy hiệu của tôi</Link>
                       <Link role="menuitem" to="/tai-khoan?tab=tu-sach" className="block px-4 py-2 hover:bg-gray-50">Gói đọc & truyện đã mua</Link>
                       <Link role="menuitem" to="/tai-khoan?tab=lich-su" className="block px-4 py-2 hover:bg-gray-50">Lịch sử thanh toán</Link>
                       <Link role="menuitem" to="/thong-bao" className="block px-4 py-2 hover:bg-gray-50">Thông báo</Link>

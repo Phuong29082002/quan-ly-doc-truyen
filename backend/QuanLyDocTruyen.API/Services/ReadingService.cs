@@ -23,7 +23,7 @@ public interface IReadingService
     Task RemoveAsync(int userId, int storyId);
 }
 
-public class ReadingService(AppDbContext db) : IReadingService
+public class ReadingService(AppDbContext db, IBadgeService badges) : IReadingService
 {
     public async Task TrackChapterAsync(int userId, int storyId, int chapterId)
     {
@@ -52,6 +52,9 @@ public class ReadingService(AppDbContext db) : IReadingService
         {
             // Hai yêu cầu mở chương gần như cùng lúc: bản ghi đã được tạo ở yêu cầu kia, bỏ qua
         }
+                // PB60: cập nhật chuỗi ngày đọc và cấp huy hiệu. Lỗi ở đây không được làm hỏng việc đọc truyện
+        try { await badges.RecordReadingAsync(userId); }
+        catch (Exception) { }
     }
 
     public async Task<ReadingProgressDto> SaveAsync(int userId, ReadingProgressRequest req)

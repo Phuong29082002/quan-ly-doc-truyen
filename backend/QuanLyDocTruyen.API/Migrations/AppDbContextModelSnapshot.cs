@@ -22,6 +22,46 @@ namespace QuanLyDocTruyen.API.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("QuanLyDocTruyen.API.Entities.Badge", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Criteria")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Icon")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Threshold")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.ToTable("Badges");
+                });
+
             modelBuilder.Entity("QuanLyDocTruyen.API.Entities.Chapter", b =>
                 {
                     b.Property<int>("Id")
@@ -585,6 +625,24 @@ namespace QuanLyDocTruyen.API.Migrations
                     b.ToTable("UserAvatars");
                 });
 
+            modelBuilder.Entity("QuanLyDocTruyen.API.Entities.UserBadge", b =>
+                {
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BadgeId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("EarnedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("UserId", "BadgeId");
+
+                    b.HasIndex("BadgeId");
+
+                    b.ToTable("UserBadges");
+                });
+
             modelBuilder.Entity("QuanLyDocTruyen.API.Entities.UserPackage", b =>
                 {
                     b.Property<int>("Id")
@@ -623,6 +681,25 @@ namespace QuanLyDocTruyen.API.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("UserPackages");
+                });
+
+            modelBuilder.Entity("QuanLyDocTruyen.API.Entities.UserStreak", b =>
+                {
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CurrentStreak")
+                        .HasColumnType("int");
+
+                    b.Property<DateOnly?>("LastReadDate")
+                        .HasColumnType("date");
+
+                    b.Property<int>("LongestStreak")
+                        .HasColumnType("int");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("UserStreaks");
                 });
 
             modelBuilder.Entity("QuanLyDocTruyen.API.Entities.Chapter", b =>
@@ -869,6 +946,25 @@ namespace QuanLyDocTruyen.API.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("QuanLyDocTruyen.API.Entities.UserBadge", b =>
+                {
+                    b.HasOne("QuanLyDocTruyen.API.Entities.Badge", "Badge")
+                        .WithMany()
+                        .HasForeignKey("BadgeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("QuanLyDocTruyen.API.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Badge");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("QuanLyDocTruyen.API.Entities.UserPackage", b =>
                 {
                     b.HasOne("QuanLyDocTruyen.API.Entities.Package", "Package")
@@ -892,6 +988,17 @@ namespace QuanLyDocTruyen.API.Migrations
                     b.Navigation("Package");
 
                     b.Navigation("Transaction");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("QuanLyDocTruyen.API.Entities.UserStreak", b =>
+                {
+                    b.HasOne("QuanLyDocTruyen.API.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.Navigation("User");
                 });

@@ -23,6 +23,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Comment> Comments => Set<Comment>();
     public DbSet<CommentReport> CommentReports => Set<CommentReport>();
     public DbSet<Rating> Ratings => Set<Rating>();
+    public DbSet<Badge> Badges => Set<Badge>();
+    public DbSet<UserBadge> UserBadges => Set<UserBadge>();
+    public DbSet<UserStreak> UserStreaks => Set<UserStreak>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder b)
     {
@@ -38,6 +41,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         m.Entity<Follow>().HasKey(x => new { x.UserId, x.StoryId });
         m.Entity<Rating>().HasKey(x => new { x.UserId, x.StoryId });
         m.Entity<Rating>().ToTable(t => t.HasCheckConstraint("CK_Rating_Score", "[Score] BETWEEN 1 AND 5"));
+        m.Entity<UserBadge>().HasKey(x => new { x.UserId, x.BadgeId });
+        m.Entity<UserStreak>().HasKey(x => x.UserId);
+        m.Entity<Badge>().HasIndex(x => x.Code).IsUnique();
+        m.Entity<UserStreak>().HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId);
+        m.Entity<UserBadge>().HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId);
+        m.Entity<UserBadge>().HasOne(x => x.Badge).WithMany().HasForeignKey(x => x.BadgeId);
         m.Entity<Follow>().HasIndex(x => x.CreatedAt);
         m.Entity<Transaction>().HasIndex(x => x.CreatedAt);
 

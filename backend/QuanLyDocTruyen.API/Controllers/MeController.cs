@@ -10,7 +10,7 @@ namespace QuanLyDocTruyen.API.Controllers;
 [ApiController]
 [Route("api/me")]
 [Authorize]
-public class MeController(IPaymentService payments, IReadingService reading) : ControllerBase
+public class MeController(IPaymentService payments, IReadingService reading, IBadgeService badges) : ControllerBase
 {
     private int UserId => User.GetUserId()!.Value;
 
@@ -50,4 +50,9 @@ public class MeController(IPaymentService payments, IReadingService reading) : C
         await reading.RemoveAsync(UserId, storyId);
         return NoContent();
     }
+    
+    // PB60: chuỗi ngày đọc liên tục và huy hiệu thành tích
+    [HttpGet("badges")]
+    public async Task<ActionResult<BadgeSummaryDto>> Badges()
+        => Ok(await badges.GetSummaryAsync(UserId));
 }
