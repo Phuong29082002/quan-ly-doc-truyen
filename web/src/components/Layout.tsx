@@ -10,7 +10,7 @@ import NotificationBell from "./NotificationBell";
 import SearchSuggest from "./SearchSuggest";
 
 const navClass = ({ isActive }: { isActive: boolean }) =>
-  `relative py-1 text-sm transition-colors ${
+  `relative whitespace-nowrap py-1 text-sm transition-colors ${
     isActive ? "text-white after:absolute after:inset-x-0 after:-bottom-[17px] after:h-0.5 after:bg-lamp" : "text-white/70 hover:text-white"
   }`;
 
@@ -99,23 +99,25 @@ export default function Layout() {
           ? isAdminPage ? "bg-ink shadow-[0_1px_0_rgb(255_255_255/0.06)]" : "bg-[#0f1220]/95 shadow-[0_1px_0_rgb(255_255_255/0.06)] backdrop-blur"
           : "bg-gradient-to-b from-black/75 to-transparent"
       }`}>
-        <div className="mx-auto flex h-16 max-w-6xl items-center gap-5 px-4">
+        <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4">
           <Link to="/" className="flex shrink-0 items-center gap-2">
             <LampMark />
-            <span className="font-story text-xl font-semibold tracking-tight">Đọc Truyện</span>
+            <span className="whitespace-nowrap font-story text-xl font-semibold tracking-tight">Đọc Truyện</span>
           </Link>
 
-          <nav className="hidden items-center gap-5 lg:flex">{links}</nav>
+          {/* 8 mục menu cần chỗ rộng nên chỉ hiện từ màn hình xl, nhỏ hơn thì gom vào nút hamburger */}
+          <nav className="hidden shrink-0 items-center gap-4 xl:flex">{links}</nav>
 
-          <SearchSuggest className="ml-auto hidden w-72 md:block" />
+          {/* Ô tìm kiếm co giãn theo chỗ còn trống thay vì rộng cố định */}
+          <SearchSuggest className="ml-auto hidden min-w-0 max-w-72 flex-1 md:block" />
 
-          <div className="ml-auto flex items-center gap-2 md:ml-0">
+          <div className="ml-auto flex shrink-0 items-center gap-2 md:ml-0">
             {user ? (
               <>
                 <Link
                   to="/nhiem-vu"
                   title="Ví xu & Nhiệm vụ"
-                  className="flex items-center gap-1.5 rounded-full border border-amber-400/40 bg-amber-400/20 px-3 py-1 text-xs font-bold text-amber-300 transition hover:bg-amber-400/30"
+                  className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-amber-400/40 bg-amber-400/20 px-3 py-1 text-xs font-bold text-amber-300 transition hover:bg-amber-400/30"
                 >
                   <span>🪙</span>
                   <span>{user.coins ?? 0}</span>
@@ -124,7 +126,8 @@ export default function Layout() {
                 <div ref={userMenuRef} className="relative">
                   <button onClick={() => setUserMenu((o) => !o)} className="flex items-center gap-2 rounded-full p-0.5 pr-2 hover:bg-white/10" aria-haspopup="menu" aria-expanded={userMenu}>
                     <Avatar url={user.avatarUrl} name={user.displayName} size={32} />
-                    <span className="hidden max-w-32 truncate text-sm sm:block">{user.displayName}</span>
+                    {/* Tên chỉ hiện khi màn hình thật rộng; tên đầy đủ vẫn có trong menu thả xuống */}
+                    <span className="hidden max-w-32 truncate text-sm 2xl:block">{user.displayName}</span>
                   </button>
                   {userMenu && (
                     <div role="menu" className="absolute right-0 top-full z-40 mt-2 w-56 overflow-hidden rounded-xl border bg-white py-1 text-sm text-gray-800 shadow-xl">
@@ -149,18 +152,18 @@ export default function Layout() {
               </>
             ) : (
               <>
-                <Link to="/login" className="rounded-full px-3 py-1.5 text-sm text-white/85 hover:text-white">Đăng nhập</Link>
-                <Link to="/register" className="rounded-full bg-lamp px-4 py-1.5 text-sm font-semibold text-ink hover:bg-amber-300">Đăng ký</Link>
+                <Link to="/login" className="whitespace-nowrap rounded-full px-3 py-1.5 text-sm text-white/85 hover:text-white">Đăng nhập</Link>
+                <Link to="/register" className="whitespace-nowrap rounded-full bg-lamp px-4 py-1.5 text-sm font-semibold text-ink hover:bg-amber-300">Đăng ký</Link>
               </>
             )}
-            <button onClick={() => setMenuOpen((o) => !o)} className="grid h-9 w-9 place-items-center rounded-full hover:bg-white/10 lg:hidden" aria-label="Mở menu" aria-expanded={menuOpen}>
+            <button onClick={() => setMenuOpen((o) => !o)} className="grid h-9 w-9 place-items-center rounded-full hover:bg-white/10 xl:hidden" aria-label="Mở menu" aria-expanded={menuOpen}>
               <svg aria-hidden viewBox="0 0 24 24" className="h-5 w-5 fill-white"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z" /></svg>
             </button>
           </div>
         </div>
 
         {menuOpen && (
-          <div className="border-t border-white/10 px-4 pb-4 pt-3 lg:hidden">
+          <div className="border-t border-white/10 px-4 pb-4 pt-3 xl:hidden">
             <SearchSuggest className="mb-3 md:hidden" />
             <nav className="flex flex-col gap-3 [&_a]:after:hidden">{links}</nav>
           </div>
