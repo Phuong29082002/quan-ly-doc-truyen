@@ -40,6 +40,15 @@ public class StoriesController(IStoryService stories, IChapterService chapters) 
     public async Task<ActionResult<StoryDetailDto>> Update(int id, StoryRequest req)
         => Ok(await stories.UpdateAsync(id, req));
 
+    // Xóa truyện (chỉ khi chưa có giao dịch mua / mở khóa bằng xu)
+    [Authorize(Roles = "Admin")]
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        await stories.DeleteAsync(id);
+        return NoContent();
+    }
+
     // PB06: ảnh bìa (multipart/form-data, field "file")
     [Authorize(Roles = "Admin")]
     [HttpPost("{id:int}/cover")]

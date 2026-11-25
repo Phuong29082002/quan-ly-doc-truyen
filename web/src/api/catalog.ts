@@ -41,6 +41,8 @@ export const storyApi = {
 
   update: (id: number, data: StoryRequest) => api.put<StoryDetail>(`/api/stories/${id}`, data).then((r) => r.data),
 
+  remove: (id: number) => api.delete(`/api/stories/${id}`),
+
   uploadCover: (id: number, file: File) => {
     const form = new FormData();
     form.append("file", file);

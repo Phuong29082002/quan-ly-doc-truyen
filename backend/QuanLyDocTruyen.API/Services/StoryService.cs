@@ -15,6 +15,8 @@ public interface IStoryService
     Task<StoryDetailDto> CreateAsync(StoryRequest req);
     Task<StoryDetailDto> UpdateAsync(int id, StoryRequest req);
     Task<CoverResponse> UploadCoverAsync(int id, IFormFile file);
+    /// <summary>Xóa truyện chưa phát sinh giao dịch, kèm toàn bộ chương và dữ liệu liên quan</summary>
+    Task DeleteAsync(int id);
 }
 
 public class StoryService(AppDbContext db, IWebHostEnvironment env) : IStoryService
@@ -223,6 +225,55 @@ public class StoryService(AppDbContext db, IWebHostEnvironment env) : IStoryServ
         await db.SaveChangesAsync();
 
         return new CoverResponse(story.CoverUrl);
+    }
+
+    // Xóa truyện. Truyện đã có người mua, có giao dịch hoặc có chương mở bằng xu thì không cho xóa để giữ lịch sử thanh toán.
+    public async Task DeleteAsync(int id)
+    {
+        var story = await db.Stories.FirstOrDefaultAsync(s => s.Id == id)
+            ?? throw new NotFoundException("Không tìm thấy truyện");
+
+        if (await db.StoryPurchases.AnyAsync(p => p.StoryId == id)
+            || await db.Transactions.AnyAsync(t => t.StoryId == id)
+            || await db.ChapterUnlocks.AnyAsync(u => u.StoryId == id))
+            throw new ConflictException("Truyện đã có giao dịch mua hoặc mở khóa bằng xu nên không thể xóa (cần giữ lịch sử thanh toán). Bạn có thể sửa nội dung hoặc chuyển truyện sang miễn phí.");
+
+        var chapterIds = await db.Chapters.Where(c => c.StoryId == id).Select(c => c.Id).ToListAsync();
+        var comments = await db.Comments.Where(c => chapterIds.Contains(c.ChapterId)).ToListAsync();
+        var commentIds = comments.Select(c => c.Id).ToList();
+
+        await using var tx = db.Database.IsRelational() ? await db.Database.BeginTransactionAsync() : null;
+
+        // Bước 1: báo cáo bình luận và các trả lời (phải xóa trước bình luận gốc)
+        db.CommentReports.RemoveRange(await db.CommentReports.Where(r => commentIds.Contains(r.CommentId)).ToListAsync());
+        db.Comments.RemoveRange(comments.Where(c => c.ParentId != null));
+        await db.SaveChangesAsync();
+
+        // Bước 2: phần còn lại của truyện
+        db.Comments.RemoveRange(comments.Where(c => c.ParentId == null));
+        db.ChapterViews.RemoveRange(await db.ChapterViews.Where(v => v.StoryId == id).ToListAsync());
+        db.ReadingProgresses.RemoveRange(await db.ReadingProgresses.Where(p => p.StoryId == id).ToListAsync());
+        db.Follows.RemoveRange(await db.Follows.Where(f => f.StoryId == id).ToListAsync());
+        db.Ratings.RemoveRange(await db.Ratings.Where(r => r.StoryId == id).ToListAsync());
+        db.StoryGenres.RemoveRange(await db.StoryGenres.Where(g => g.StoryId == id).ToListAsync());
+        db.PackageStories.RemoveRange(await db.PackageStories.Where(p => p.StoryId == id).ToListAsync());
+        foreach (var n in await db.Notifications.Where(n => n.StoryId == id || (n.ChapterId != null && chapterIds.Contains(n.ChapterId.Value))).ToListAsync())
+        {
+            n.StoryId = null;
+            n.ChapterId = null;
+        }
+        db.Chapters.RemoveRange(await db.Chapters.Where(c => c.StoryId == id).ToListAsync());
+        db.Stories.Remove(story);
+        await db.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
+
+        // Xóa ảnh bìa đã tải lên (ảnh mẫu trong thư mục library thì giữ lại)
+        if (story.CoverUrl is not null && story.CoverUrl.StartsWith("/uploads/covers/"))
+        {
+            var webRoot = env.WebRootPath ?? Path.Combine(env.ContentRootPath, "wwwroot");
+            var path = Path.Combine(webRoot, "uploads", "covers", Path.GetFileName(story.CoverUrl));
+            if (System.IO.File.Exists(path)) System.IO.File.Delete(path);
+        }
     }
 
     // PB16, PB17: kiểm tra chính sách truy cập, trả về giá và số chương miễn phí đã chuẩn hóa

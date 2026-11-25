@@ -148,6 +148,7 @@ Web API dùng chung cho Web (React) và Android. Địa chỉ mặc định khi 
 | GET | `/api/stories/{id}` | Không | PB13: chi tiết truyện. Admin thấy cả chương hẹn giờ chưa phát hành |
 | POST | `/api/stories` | Admin | PB06 |
 | PUT | `/api/stories/{id}` | Admin | PB06, PB07 |
+| DELETE | `/api/stories/{id}` | Admin | Xóa truyện kèm chương, bình luận, theo dõi, đánh giá. Trả 409 nếu truyện đã có giao dịch mua hoặc mở khóa bằng xu |
 | POST | `/api/stories/{id}/cover` | Admin | PB06: ảnh bìa (multipart/form-data, field "file") |
 | GET | `/api/stories/{storyId}/chapters/{number}` | Không | PB14: đọc chương |
 | POST | `/api/stories/{storyId}/chapters` | Admin | PB08: thêm chương |

@@ -13,7 +13,9 @@ import { formatDate, formatNumber } from "../../utils/format";
 // PB06, PB07, PB08: danh sách truyện trong trang quản trị
 export default function AdminStoriesPage() {
   const [keyword, setKeyword] = useState("");
-  const [query, setQuery] = useState({ keyword: "", page: 1 });
+  const [query, setQuery] = useState({ keyword: "", page: 1, reload: 0 });
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string }>();
+  const [deleting, setDeleting] = useState<number>();
   const key = JSON.stringify(query);
   const [state, setState] = useState<{ key: string; data?: PagedResult<StoryListItem>; error?: string }>();
 
@@ -30,7 +32,23 @@ export default function AdminStoriesPage() {
 
   function search(e: FormEvent) {
     e.preventDefault();
-    setQuery({ keyword: keyword.trim(), page: 1 });
+    setQuery({ keyword: keyword.trim(), page: 1, reload: query.reload });
+  }
+
+  // Xóa truyện: máy chủ chặn nếu truyện đã có giao dịch mua hoặc mở khóa bằng xu
+  async function handleDelete(s: StoryListItem) {
+    if (!window.confirm(`Xóa truyện "${s.title}" cùng ${s.chapterCount} chương, bình luận, đánh giá, lượt theo dõi? Thao tác này không thể hoàn tác.`)) return;
+    setDeleting(s.id);
+    setMessage(undefined);
+    try {
+      await storyApi.remove(s.id);
+      setMessage({ type: "success", text: `Đã xóa truyện "${s.title}"` });
+      setQuery((q) => ({ ...q, reload: q.reload + 1 }));
+    } catch (err) {
+      setMessage({ type: "error", text: getErrorMessage(err, "Xóa truyện thất bại") });
+    } finally {
+      setDeleting(undefined);
+    }
   }
 
   return (
@@ -51,6 +69,8 @@ export default function AdminStoriesPage() {
         />
         <button className="rounded border px-4 py-2 text-sm hover:bg-gray-50">Tìm</button>
       </form>
+
+      {message && <Alert type={message.type}>{message.text}</Alert>}
 
       {state?.key !== key && <p className="text-gray-500">Đang tải...</p>}
       {state?.key === key && state.error && <Alert>{state.error}</Alert>}
@@ -89,7 +109,14 @@ export default function AdminStoriesPage() {
                     <td className="px-3 py-2">{formatDate(s.updatedAt)}</td>
                     <td className="px-3 py-2 text-right whitespace-nowrap">
                       <Link to={`/admin/truyen/${s.id}`} className="mr-3 text-blue-600 hover:underline">Sửa</Link>
-                      <Link to={`/admin/truyen/${s.id}/chuong/moi`} className="text-green-700 hover:underline">+ Chương</Link>
+                      <Link to={`/admin/truyen/${s.id}/chuong/moi`} className="mr-3 text-green-700 hover:underline">+ Chương</Link>
+                      <button
+                        onClick={() => handleDelete(s)}
+                        disabled={deleting === s.id}
+                        className="text-red-600 hover:underline disabled:opacity-50"
+                      >
+                        {deleting === s.id ? "Đang xóa..." : "Xóa"}
+                      </button>
                     </td>
                   </tr>
                 ))}
