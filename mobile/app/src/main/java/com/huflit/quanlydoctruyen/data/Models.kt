@@ -112,7 +112,14 @@ data class PackageItem(
 )
 
 /** PB22: thông tin kèm lỗi 403 khi chương trả phí chưa có quyền đọc */
-data class LockInfo(val code: String, val storyTitle: String?, val price: Double?)
+data class LockInfo(
+    val code: String,
+    val storyTitle: String?,
+    val price: Double?,
+    // PB58: id chương và số xu để mở khóa riêng chương này
+    val chapterId: Int? = null,
+    val coinPrice: Int? = null
+)
 
 data class ChapterContent(
     val id: Int,
@@ -313,3 +320,64 @@ fun timeAgo(iso: String?): String {
         else -> formatDateTime(iso)
     }
 }
+
+// ---------- PB58: xu, điểm danh, nhiệm vụ đọc ----------
+
+data class CoinBalance(
+    val coins: Int,
+    val hasCheckedInToday: Boolean,
+    val consecutiveDays: Int,
+    val lastCheckInAt: String?,
+    val nextCheckInReward: Int
+)
+
+data class CheckInResult(val success: Boolean, val coinsEarned: Int, val newBalance: Int, val consecutiveDays: Int, val message: String)
+
+data class DailyMission(
+    val key: String,
+    val title: String,
+    val description: String,
+    val current: Int,
+    val target: Int,
+    val rewardCoins: Int,
+    val isCompleted: Boolean,
+    val isClaimed: Boolean
+)
+
+data class ClaimMissionResult(val success: Boolean, val coinsEarned: Int, val newBalance: Int, val message: String)
+
+data class CoinHistoryItem(val id: Int, val amount: Int, val type: String, val description: String, val createdAt: String)
+
+data class UnlockChapterRequest(val chapterId: Int)
+
+data class UnlockChapterResult(val success: Boolean, val chapterId: Int, val coinsSpent: Int, val newBalance: Int, val message: String)
+
+// ---------- PB60: huy hiệu, chuỗi ngày đọc ----------
+
+data class BadgeItem(
+    val id: Int,
+    val code: String,
+    val name: String,
+    val description: String,
+    val icon: String,
+    val criteria: String,
+    val threshold: Int,
+    val earned: Boolean,
+    val earnedAt: String?
+)
+
+data class BadgeSummary(val currentStreak: Int, val longestStreak: Int, val totalChaptersRead: Int, val badges: List<BadgeItem>)
+
+// ---------- PB57: quên mật khẩu ----------
+
+data class ForgotPasswordRequest(val email: String)
+
+data class ResetPasswordRequest(val email: String, val otp: String, val newPassword: String)
+
+data class MessageResponse(val message: String)
+
+// ---------- PB61: chatbot gợi ý truyện ----------
+
+data class ChatbotRequest(val message: String)
+
+data class ChatbotReply(val reply: String, val stories: List<StoryListItem>, val suggestions: List<String>)

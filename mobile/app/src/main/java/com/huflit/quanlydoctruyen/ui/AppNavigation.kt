@@ -1,6 +1,7 @@
 package com.huflit.quanlydoctruyen.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -9,6 +10,11 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.huflit.quanlydoctruyen.data.PaymentStart
 import com.huflit.quanlydoctruyen.ui.screens.FollowingScreen
+import com.huflit.quanlydoctruyen.ui.screens.OfflineScreen
+import com.huflit.quanlydoctruyen.ui.screens.ForgotPasswordScreen
+import com.huflit.quanlydoctruyen.ui.screens.CoinsScreen
+import com.huflit.quanlydoctruyen.ui.screens.ChatbotScreen
+import com.huflit.quanlydoctruyen.ui.screens.BadgesScreen
 import com.huflit.quanlydoctruyen.ui.screens.HomeScreen
 import com.huflit.quanlydoctruyen.ui.screens.NotificationsScreen
 import com.huflit.quanlydoctruyen.ui.screens.RankingScreen
@@ -27,9 +33,17 @@ private const val READ_ROUTE = "story/{id}/chapter/{number}"
 private const val PAYMENT_ROUTE = "payment/{txId}?provider={provider}"
 
 @Composable
-fun AppNavigation() {
+fun AppNavigation(openStoryId: Int = 0, openChapter: Int = 0) {
     val nav = rememberNavController()
     val uriHandler = LocalUriHandler.current
+
+    // PB59: bấm widget -> mở truyện rồi vào chương đang đọc dở (Quay lại sẽ về trang truyện)
+    LaunchedEffect(openStoryId, openChapter) {
+        if (openStoryId > 0) {
+            nav.navigate("story/$openStoryId")
+            if (openChapter > 0) nav.navigate("story/$openStoryId/chapter/$openChapter")
+        }
+    }
 
     // PB19, PB21, PB45: giao dịch đã tạo -> VNPay thì mở trình duyệt, rồi vào màn hình thanh toán / chờ kết quả
     val onPaymentStarted: (PaymentStart) -> Unit = { start ->
@@ -51,8 +65,33 @@ fun AppNavigation() {
                 onContinueReading = { storyId, chapter -> nav.navigate("story/$storyId/chapter/$chapter") },
                 onOpenNotifications = { nav.navigate("notifications") },
                 onOpenFollowing = { nav.navigate("following") },
-                onOpenRanking = { nav.navigate("ranking") }
+                onOpenRanking = { nav.navigate("ranking") },
+                onOpenCoins = { nav.navigate("coins") },
+                onOpenBadges = { nav.navigate("badges") },
+                onOpenChatbot = { nav.navigate("chatbot") },
+                onOpenOffline = { nav.navigate("offline") }
             )
+        }
+
+        // PB58: xu, điểm danh, nhiệm vụ đọc
+        composable("coins") { CoinsScreen(onBack = { nav.popBackStack() }) }
+
+        // PB60: huy hiệu, chuỗi ngày đọc
+        composable("badges") { BadgesScreen(onBack = { nav.popBackStack() }) }
+
+        // PB61: trợ lý gợi ý truyện
+        composable("chatbot") {
+            ChatbotScreen(onOpenStory = { id -> nav.navigate("story/$id") }, onBack = { nav.popBackStack() })
+        }
+
+        // PB41: chương đã tải về đọc offline
+        composable("offline") {
+            OfflineScreen(onRead = { id, n -> nav.navigate("story/$id/chapter/$n") }, onBack = { nav.popBackStack() })
+        }
+
+        // PB57: quên mật khẩu
+        composable("forgot") {
+            ForgotPasswordScreen(onDone = { nav.popBackStack() }, onBack = { nav.popBackStack() })
         }
 
         // PB28: truyện theo dõi
@@ -80,7 +119,12 @@ fun AppNavigation() {
 
         // PB04: hồ sơ cá nhân
         composable("profile") {
-            ProfileScreen(onBack = { nav.popBackStack() }, onOpenLibrary = { nav.navigate("library") })
+            ProfileScreen(
+                onBack = { nav.popBackStack() },
+                onOpenLibrary = { nav.navigate("library") },
+                onOpenCoins = { nav.navigate("coins") },
+                onOpenBadges = { nav.navigate("badges") }
+            )
         }
 
         // PB25: gói đang dùng, truyện đã mua, lịch sử thanh toán
@@ -172,7 +216,8 @@ fun AppNavigation() {
             LoginScreen(
                 onSuccess = { nav.popBackStack() },
                 onRegister = { nav.navigate("register") },
-                onBack = { nav.popBackStack() }
+                onBack = { nav.popBackStack() },
+                onForgot = { nav.navigate("forgot") }
             )
         }
 

@@ -40,7 +40,7 @@ import kotlin.coroutines.cancellation.CancellationException
 // PB02: đăng nhập, lưu token
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LoginScreen(onSuccess: () -> Unit, onRegister: () -> Unit, onBack: () -> Unit) {
+fun LoginScreen(onSuccess: () -> Unit, onRegister: () -> Unit, onBack: () -> Unit, onForgot: () -> Unit = {}) {
     var login by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
@@ -117,6 +117,10 @@ fun LoginScreen(onSuccess: () -> Unit, onRegister: () -> Unit, onBack: () -> Uni
             }
             TextButton(onClick = onRegister, modifier = Modifier.fillMaxWidth()) {
                 Text("Chưa có tài khoản? Đăng ký")
+            }
+            // PB57: quên mật khẩu
+            TextButton(onClick = onForgot, modifier = Modifier.fillMaxWidth()) {
+                Text("Quên mật khẩu?")
             }
         }
     }

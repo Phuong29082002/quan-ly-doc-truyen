@@ -36,7 +36,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.huflit.quanlydoctruyen.ReadingWidget
 import com.huflit.quanlydoctruyen.data.ApiClient
+import com.huflit.quanlydoctruyen.data.OfflineStore
+import com.huflit.quanlydoctruyen.data.UnlockChapterRequest
+import com.huflit.quanlydoctruyen.data.toMessage
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.launch
+import kotlin.coroutines.cancellation.CancellationException
 import com.huflit.quanlydoctruyen.data.ChapterContent
 import com.huflit.quanlydoctruyen.data.LockInfo
 import com.huflit.quanlydoctruyen.data.PaymentStart
@@ -74,9 +82,16 @@ fun ReadChapterScreen(
     onPaymentStarted: (PaymentStart) -> Unit
 ) {
     var retry by remember { mutableIntStateOf(0) }
+    val context = LocalContext.current
+    // PB41: mất mạng mà chương đã tải về máy thì đọc bản đã lưu
+    var offlineMode by remember { mutableStateOf(false) }
     val state by produceState<UiState<ChapterContent>>(UiState.Loading, storyId, number, retry, SessionManager.user?.id) {
         value = UiState.Loading
-        value = load { ApiClient.api.readChapter(storyId, number) }
+        val online = load { ApiClient.api.readChapter(storyId, number) }
+        val saved = if (online is UiState.Error && online.code == null && online.lock == null)
+            OfflineStore.get(context, storyId, number) else null
+        offlineMode = saved != null
+        value = if (saved != null) UiState.Success(saved) else online
     }
 
     var fontSize by remember { mutableIntStateOf(SessionManager.readerFontSize) }
@@ -113,11 +128,17 @@ fun ReadChapterScreen(
                 is UiState.Loading -> LoadingBox()
                 is UiState.Error ->
                     // PB22: chương trả phí chưa có quyền đọc
-                    if (s.lock != null) LockedChapter(storyId, number, s.lock, onLogin, onBack, onOpenPackages, onPaymentStarted)
+                    if (s.lock != null) LockedChapter(storyId, number, s.lock, onLogin, onBack, onOpenPackages, onPaymentStarted, onUnlocked = { retry++ })
                     else ErrorBox(s.message, onRetry = if (s.code == 403) null else ({ retry++ }))
                 is UiState.Success -> {
                     val c = s.data
                     val scroll = rememberScrollState()
+                    var downloaded by remember(c.id) { mutableStateOf(OfflineStore.has(context, c.storyId, c.number)) }
+
+                    // PB59: lưu chương đang đọc cho widget "Đang đọc dở"
+                    LaunchedEffect(c.id) {
+                        runCatching { ReadingWidget.saveLastRead(context, c) }
+                    }
 
                     // PB26: mở lại đúng vị trí đọc lần trước (kể cả khi lần trước đọc trên Web)
                     LaunchedEffect(c.id) {
@@ -169,6 +190,19 @@ fun ReadChapterScreen(
                                 if (tts.active != null) TextButton(onClick = { tts.stop() }) { Text("Dừng") }
                             }
                             TextButton(onClick = { showSettings = !showSettings }) { Text(if (showSettings) "Ẩn tùy chỉnh" else "Aa Tùy chỉnh") }
+                            // PB41: tải chương về máy để đọc khi không có mạng
+                            TextButton(onClick = {
+                                if (downloaded) OfflineStore.remove(context, c.storyId, c.number) else OfflineStore.save(context, c)
+                                downloaded = !downloaded
+                            }) { Text(if (downloaded) "✓ Đã tải" else "⬇ Tải về") }
+                        }
+                        if (offlineMode) {
+                            Text(
+                                "Không có mạng: đang đọc bản đã tải về máy.",
+                                style = MaterialTheme.typography.bodySmall,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth()
+                            )
                         }
                         if (tts.ready && tts.vietnameseMissing) {
                             Text(
@@ -200,8 +234,8 @@ fun ReadChapterScreen(
 
                         ChapterNav(c, onGoTo)
 
-                        // PB30: thảo luận theo chương
-                        CommentsSection(c.id, onLogin)
+                        // PB30: thảo luận theo chương (cần mạng)
+                        if (!offlineMode) CommentsSection(c.id, onLogin)
                     }
                 }
             }
@@ -284,9 +318,13 @@ private fun LockedChapter(
     onLogin: () -> Unit,
     onBack: () -> Unit,
     onOpenPackages: () -> Unit,
-    onPaymentStarted: (PaymentStart) -> Unit
+    onPaymentStarted: (PaymentStart) -> Unit,
+    onUnlocked: () -> Unit
 ) {
     val loggedIn = SessionManager.user != null
+    val scope = rememberCoroutineScope()
+    var unlocking by remember { mutableStateOf(false) }
+    var unlockError by remember { mutableStateOf<String?>(null) }
     Column(
         Modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.Center,
@@ -319,6 +357,34 @@ private fun LockedChapter(
                 )
             }
             OutlinedButton(onClick = onOpenPackages, modifier = Modifier.padding(top = 8.dp)) { Text("Xem gói đọc") }
+            // PB58: dùng xu mở khóa riêng chương này
+            val chapterId = lock.chapterId
+            if (chapterId != null) {
+                val coins = lock.coinPrice ?: 5
+                OutlinedButton(
+                    onClick = {
+                        unlockError = null
+                        scope.launch {
+                            unlocking = true
+                            try {
+                                ApiClient.api.unlockChapter(UnlockChapterRequest(chapterId))
+                                onUnlocked()
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                unlockError = e.toMessage("Mở khóa thất bại")
+                            } finally {
+                                unlocking = false
+                            }
+                        }
+                    },
+                    enabled = !unlocking,
+                    modifier = Modifier.padding(top = 8.dp)
+                ) { Text(if (unlocking) "Đang mở khóa..." else "🪙 Mở chương này bằng $coins xu") }
+                unlockError?.let {
+                    Text(it, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 4.dp))
+                }
+            }
         }
         TextButton(onClick = onBack, modifier = Modifier.padding(top = 12.dp)) { Text("Về mục lục") }
     }

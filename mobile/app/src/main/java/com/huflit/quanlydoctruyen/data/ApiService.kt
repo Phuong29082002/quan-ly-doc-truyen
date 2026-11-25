@@ -177,6 +177,40 @@ interface ApiService {
 
     @GET("api/stories/{storyId}/similar")
     suspend fun similar(@Path("storyId") storyId: Int, @Query("limit") limit: Int = 6): List<Recommendation>
+
+    // PB57: quên mật khẩu (gửi mã OTP qua email) và đặt lại mật khẩu
+    @POST("api/auth/forgot-password")
+    suspend fun forgotPassword(@Body body: ForgotPasswordRequest): MessageResponse
+
+    @POST("api/auth/reset-password")
+    suspend fun resetPassword(@Body body: ResetPasswordRequest): MessageResponse
+
+    // PB58: xu, điểm danh, nhiệm vụ đọc, mở khóa chương bằng xu
+    @GET("api/coins/balance")
+    suspend fun coinBalance(): CoinBalance
+
+    @POST("api/coins/check-in")
+    suspend fun checkIn(): CheckInResult
+
+    @GET("api/coins/missions")
+    suspend fun missions(): List<DailyMission>
+
+    @POST("api/coins/missions/{key}/claim")
+    suspend fun claimMission(@Path("key") key: String): ClaimMissionResult
+
+    @POST("api/coins/unlock-chapter")
+    suspend fun unlockChapter(@Body body: UnlockChapterRequest): UnlockChapterResult
+
+    @GET("api/coins/history")
+    suspend fun coinHistory(@Query("page") page: Int = 1, @Query("pageSize") pageSize: Int = 20): PagedResult<CoinHistoryItem>
+
+    // PB60: huy hiệu và chuỗi ngày đọc
+    @GET("api/me/badges")
+    suspend fun badges(): BadgeSummary
+
+    // PB61: chatbot gợi ý truyện
+    @POST("api/chatbot")
+    suspend fun askChatbot(@Body body: ChatbotRequest): ChatbotReply
 }
 
 object ApiClient {
@@ -260,7 +294,9 @@ fun parseLockInfo(errorBody: String?): LockInfo? = runCatching {
         LockInfo(
             code,
             json.get("storyTitle")?.takeUnless { it.isJsonNull }?.asString,
-            json.get("price")?.takeUnless { it.isJsonNull }?.asDouble
+            json.get("price")?.takeUnless { it.isJsonNull }?.asDouble,
+            json.get("chapterId")?.takeUnless { it.isJsonNull }?.asInt,
+            json.get("coinPrice")?.takeUnless { it.isJsonNull }?.asInt
         )
     }
 }.getOrNull()

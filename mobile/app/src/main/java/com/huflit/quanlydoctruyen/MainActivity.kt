@@ -14,10 +14,13 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         SessionManager.init(applicationContext) // đọc lại phiên đăng nhập đã lưu
         enableEdgeToEdge()
+        // PB59: mở từ widget "Đang đọc dở" thì vào thẳng chương đó
+        val openStoryId = intent?.getIntExtra(ReadingWidget.EXTRA_STORY_ID, 0) ?: 0
+        val openChapter = intent?.getIntExtra(ReadingWidget.EXTRA_CHAPTER, 0) ?: 0
         setContent {
             QuanLyDocTruyenTheme {
                 // PB53: bật mở khóa bằng vân tay thì phải xác thực trước khi vào app
-                BiometricGate { AppNavigation() }
+                BiometricGate { AppNavigation(openStoryId, openChapter) }
             }
         }
     }

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -60,7 +61,12 @@ import kotlin.coroutines.cancellation.CancellationException
 // PB04: xem, cập nhật hồ sơ và đổi mật khẩu
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileScreen(onBack: () -> Unit, onOpenLibrary: () -> Unit) {
+fun ProfileScreen(
+    onBack: () -> Unit,
+    onOpenLibrary: () -> Unit,
+    onOpenCoins: () -> Unit = {},
+    onOpenBadges: () -> Unit = {}
+) {
     val user = SessionManager.user
     val scope = rememberCoroutineScope()
 
@@ -214,6 +220,12 @@ fun ProfileScreen(onBack: () -> Unit, onOpenLibrary: () -> Unit) {
             // PB25: gói đang dùng, truyện đã mua, lịch sử thanh toán
             Button(onClick = onOpenLibrary, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
                 Text("Gói đọc, truyện đã mua & lịch sử thanh toán")
+            }
+            // PB58: xu, điểm danh, nhiệm vụ; PB60: huy hiệu, chuỗi ngày đọc
+            Row(Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                OutlinedButton(onClick = onOpenCoins, modifier = Modifier.weight(1f)) { Text("🪙 Xu & nhiệm vụ") }
+                Spacer(Modifier.width(8.dp))
+                OutlinedButton(onClick = onOpenBadges, modifier = Modifier.weight(1f)) { Text("🏅 Huy hiệu") }
             }
 
             SectionTitle("Thông tin cá nhân")

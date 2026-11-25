@@ -74,7 +74,11 @@ fun HomeScreen(
     onContinueReading: (storyId: Int, chapter: Int) -> Unit,
     onOpenNotifications: () -> Unit = {},
     onOpenFollowing: () -> Unit = {},
-    onOpenRanking: () -> Unit = {}
+    onOpenRanking: () -> Unit = {},
+    onOpenCoins: () -> Unit = {},
+    onOpenBadges: () -> Unit = {},
+    onOpenChatbot: () -> Unit = {},
+    onOpenOffline: () -> Unit = {}
 ) {
     var input by rememberSaveable { mutableStateOf("") }
     var keyword by rememberSaveable { mutableStateOf("") }
@@ -206,6 +210,11 @@ fun HomeScreen(
                 if (user != null) AssistChip(onClick = onOpenFollowing, label = { Text("⭐ Theo dõi") })
                 AssistChip(onClick = onOpenRanking, label = { Text("🏆 Xếp hạng") })
                 AssistChip(onClick = onOpenPackages, label = { Text("💎 Gói đọc") })
+                // PB58, PB60: xu và huy hiệu; PB61: trợ lý gợi ý truyện; PB41: chương đã tải đọc offline
+                if (user != null) AssistChip(onClick = onOpenCoins, label = { Text("🪙 Xu & nhiệm vụ") })
+                if (user != null) AssistChip(onClick = onOpenBadges, label = { Text("🏅 Huy hiệu") })
+                AssistChip(onClick = onOpenChatbot, label = { Text("💬 Trợ lý gợi ý") })
+                AssistChip(onClick = onOpenOffline, label = { Text("⬇ Đã tải về") })
             }
 
             Row(

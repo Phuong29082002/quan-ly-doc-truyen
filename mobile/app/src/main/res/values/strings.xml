@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">QuanLyDocTruyen</string>
+    <string name="widget_label">Đang đọc dở</string>
+    <string name="widget_description">Truyện bạn đang đọc dở, bấm để đọc tiếp</string>
 </resources>
