@@ -79,6 +79,7 @@ builder.Services.AddScoped<IRatingService, RatingService>();
 builder.Services.AddScoped<IRankingService, RankingService>();
 builder.Services.AddScoped<IRecommendationService, RecommendationService>();
 builder.Services.AddScoped<IStatsService, StatsService>();
+builder.Services.AddScoped<IChatbotService, ChatbotService>();
 builder.Services.AddHostedService<NewChapterNotifier>();
 
 builder.Services.AddControllers().AddJsonOptions(o =>

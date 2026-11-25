@@ -47,6 +47,18 @@ export const recommendationApi = {
     api.get<Recommendation[]>(`/api/stories/${storyId}/similar`, { params: { limit } }).then((r) => r.data),
 };
 
+// ---------- PB61: chatbot gợi ý truyện ----------
+
+export interface ChatbotReply {
+  reply: string;
+  stories: StoryListItem[];
+  suggestions: string[];
+}
+
+export const chatbotApi = {
+  ask: (message: string) => api.post<ChatbotReply>("/api/chatbot", { message }).then((r) => r.data),
+};
+
 // ---------- PB35-37, PB54: thống kê ----------
 
 export interface StatsTotals {

@@ -4,6 +4,7 @@ import { notificationLink } from "../api/community";
 import { useAuth } from "../auth/useAuth";
 import { useNotifications } from "../notifications/useNotifications";
 import Avatar from "./Avatar";
+import ChatbotWidget from "./ChatbotWidget";
 import InstallAppButton from "./InstallAppButton";
 import NotificationBell from "./NotificationBell";
 import SearchSuggest from "./SearchSuggest";
@@ -186,6 +187,9 @@ export default function Layout() {
           </span>
         </div>
       </footer>
+
+      {/* PB61: trợ lý gợi ý truyện */}
+      {!isAdminPage && <ChatbotWidget />}
 
       {toast && (
         <button

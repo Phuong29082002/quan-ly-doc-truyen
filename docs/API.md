@@ -83,6 +83,7 @@ Web API dùng chung cho Web (React) và Android. Địa chỉ mặc định khi 
 | GET | `/api/rankings` | Không | PB49: xếp hạng (type = views, rating, follows; period = day, week, month, all) |
 | GET | `/api/recommendations` | Không | Có đăng nhập: gợi ý theo sở thích; chưa đăng nhập: truyện được đọc nhiều |
 | GET | `/api/stories/{storyId}/similar` | Không | PB50: truyện tương tự |
+| POST | `/api/chatbot` | Không | PB61: chatbot gợi ý truyện, body `{ "message": "truyện trinh thám hay" }`, trả câu trả lời, danh sách truyện và câu hỏi gợi ý |
 | GET | `/api/admin/stats` | Admin | PB35-PB37: thống kê theo khoảng ngày (from, to) |
 | GET | `/api/admin/stats/export` | Admin | PB54: tải báo cáo Excel (.xlsx) |
 
